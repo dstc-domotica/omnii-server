@@ -1,6 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useTheme } from "@/hooks/useTheme";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,6 +11,12 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const router = useRouterState();
   const currentPath = router.location.pathname;
+  const { theme, toggleTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const isActive = (path: string) => {
     return currentPath === path;
@@ -34,11 +42,20 @@ export function Layout({ children }: LayoutProps) {
                   Enrollment
                 </Button>
               </Link>
+              <Separator orientation="vertical" className="h-6" />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleTheme}
+                title={mounted && theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              >
+                {mounted && theme === "dark" ? "Light" : "Dark"}
+              </Button>
             </nav>
           </div>
         </div>
       </header>
-      <main>{children}</main>
+      <main className="pb-12">{children}</main>
     </div>
   );
 }

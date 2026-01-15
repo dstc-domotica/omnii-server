@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useInstances } from "@/hooks/useInstances";
-import { useWebSocket } from "@/hooks/useWebSocket";
 import { InstanceCard } from "@/components/instance-card";
-import { DebugPanel } from "@/components/debug-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -12,7 +10,6 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const { instances, loading, error, refetch } = useInstances();
-  const { connected, lastMessage } = useWebSocket();
 
   const stats = {
     total: instances.length,
@@ -80,14 +77,6 @@ function Dashboard() {
         </Card>
       </div>
 
-      {/* WebSocket Status */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm">WebSocket:</span>
-        <Badge variant={connected ? "default" : "secondary"}>
-          {connected ? "Connected" : "Disconnected"}
-        </Badge>
-      </div>
-
       {/* Instances Grid */}
       {instances.length === 0 ? (
         <Card>
@@ -98,29 +87,11 @@ function Dashboard() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {instances.map((instance) => (
-            <InstanceCard key={instance.id} instance={instance} />
+            <InstanceCard key={instance.id} instance={instance} onDelete={refetch} />
           ))}
         </div>
       )}
 
-      {/* Debug Panel */}
-      <DebugPanel
-        title="Debug: Connection & Data"
-        data={{
-          websocket: {
-            connected,
-            lastMessage: lastMessage ? {
-              type: lastMessage.type,
-              instanceId: lastMessage.instanceId,
-              timestamp: lastMessage.timestamp,
-            } : null,
-          },
-          instances: {
-            count: instances.length,
-            data: instances,
-          },
-        }}
-      />
     </div>
   );
 }

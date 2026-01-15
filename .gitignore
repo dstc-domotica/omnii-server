@@ -1,13 +1,54 @@
-node_modules
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Production
+build/
+dist/
+
+# Misc
 .DS_Store
-dist
-dist-ssr
-*.local
-count.txt
+*.pem
 .env
-.nitro
-.tanstack
-.wrangler
-.output
-.vinxi
-todos.json
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Local env files
+.env*.local
+
+# Vercel
+.vercel
+
+# Turbo
+.turbo
+
+# Database
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Backend data
+apps/backend/data/
+apps/backend/*.db
+
+# MQTT data and logs
+mqtt/data/
+mqtt/log/
+
+# MQTT certificates and keys (sensitive)
+mqtt/certs/*.key
+mqtt/config/passwd
+mqtt/config/acl

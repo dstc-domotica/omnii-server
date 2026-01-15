@@ -1,9 +1,10 @@
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import Database from "better-sqlite3";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { drizzle } from "drizzle-orm/bun-sqlite";
+import { Database } from "bun:sqlite";
+import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import * as schema from "./schema";
 
-const sqlite = new Database("omnii.db");
+const dbPath = process.env.DB_PATH || "omnii.db";
+const sqlite = new Database(dbPath);
 export const db = drizzle(sqlite, { schema });
 
 // Run migrations on startup

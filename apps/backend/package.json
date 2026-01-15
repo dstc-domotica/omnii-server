@@ -4,19 +4,22 @@
     "dev": "bun run --hot src/index.ts",
     "db:generate": "bunx drizzle-kit generate",
     "db:migrate": "bun run scripts/migrate.ts",
-    "db:migrate:dev": "bun run db:generate && bun run db:migrate",
     "db:studio": "bunx drizzle-kit studio",
-    "db:push": "bunx drizzle-kit push",
-    "db:drop": "bunx drizzle-kit drop"
+    "db:drop": "bunx drizzle-kit drop",
+    "proto:generate": "mkdir -p ./src/grpc/generated && ./node_modules/.bin/grpc_tools_node_protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --plugin=protoc-gen-grpc=./node_modules/.bin/grpc_tools_node_protoc_plugin --ts_out=grpc_js:./src/grpc/generated --grpc_out=grpc_js:./src/grpc/generated --js_out=import_style=commonjs,binary:./src/grpc/generated -I ../../proto ../../proto/omnnii.proto"
   },
   "dependencies": {
-    "better-sqlite3": "^12.5.0",
+    "@grpc/grpc-js": "^1.14.3",
+    "@grpc/proto-loader": "^0.8.0",
     "drizzle-orm": "^0.45.1",
-    "hono": "^4.0.0",
-    "mqtt": "^5.14.1"
+    "hono": "^4.11.3",
+    "google-protobuf": "^4.0.1"
   },
   "devDependencies": {
     "bun-types": "latest",
-    "drizzle-kit": "^0.31.8"
+    "drizzle-kit": "^0.31.8",
+    "grpc-tools": "^1.13.1",
+    "grpc_tools_node_protoc_ts": "^5.3.3",
+    "protoc": "^33.2.0"
   }
 }

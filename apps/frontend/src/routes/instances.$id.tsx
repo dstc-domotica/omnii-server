@@ -1,71 +1,199 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { getInstance, getInstanceMetrics, getInstanceHeartbeats, sendCommand, type Instance, type Metric, type Heartbeat } from "@/lib/api";
-import { useWebSocket } from "@/hooks/useWebSocket";
+import {
+  getInstance,
+  getInstanceSystemInfo,
+  getInstanceUpdates,
+  getInstanceHeartbeats,
+  triggerUpdate,
+  deleteInstance,
+  type Instance,
+  type SystemInfo,
+  type AvailableUpdate,
+  type Heartbeat,
+} from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { DebugPanel } from "@/components/debug-panel";
-import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { DotsThreeVerticalIcon, TrashIcon, ArrowClockwiseIcon } from "@phosphor-icons/react";
+import { toast } from "@/lib/toast";
+import { AvailabilityTimeline, LatencyChart } from "@/components/heartbeat-charts";
 
 export const Route = createFileRoute("/instances/$id")({
   component: InstanceDetail,
 });
 
+/**
+ * Get heartbeat status based on lastSeen timestamp
+ */
+function getHeartbeatStatus(lastSeen: number | null): {
+  color: "green" | "yellow" | "red" | "gray";
+  label: string;
+  description: string;
+} {
+  if (!lastSeen) {
+    return { color: "gray", label: "Never", description: "No heartbeat received" };
+  }
+
+  const now = Date.now();
+  const diffMs = now - lastSeen;
+  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+
+  let label: string;
+  if (diffSeconds < 60) {
+    label = diffSeconds <= 1 ? "Just now" : `${diffSeconds}s ago`;
+  } else if (diffMinutes < 60) {
+    label = `${diffMinutes}m ago`;
+  } else {
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) {
+      label = `${diffHours}h ago`;
+    } else {
+      label = new Date(lastSeen).toLocaleDateString();
+    }
+  }
+
+  if (diffMinutes < 1) {
+    return { color: "green", label, description: "Recently active" };
+  } else if (diffMinutes < 5) {
+    return { color: "yellow", label, description: "Slightly stale" };
+  } else {
+    return { color: "red", label, description: "Unreachable" };
+  }
+}
+
+function HeartbeatIndicator({ lastSeen }: { lastSeen: number | null }) {
+  const status = getHeartbeatStatus(lastSeen);
+
+  const colorClasses = {
+    green: "bg-green-500",
+    yellow: "bg-yellow-500",
+    red: "bg-red-500",
+    gray: "bg-gray-400",
+  };
+
+  return (
+    <div className="flex items-center gap-2" title={status.description}>
+      <span
+        className={`inline-block w-2 h-2 rounded-full ${colorClasses[status.color]}`}
+      />
+      <span>{status.label}</span>
+    </div>
+  );
+}
+
+function getUpdateTypeBadgeVariant(updateType: string): "default" | "secondary" | "destructive" | "outline" {
+  switch (updateType) {
+    case "core":
+      return "default";
+    case "os":
+      return "destructive";
+    case "supervisor":
+      return "secondary";
+    case "addon":
+      return "outline";
+    default:
+      return "outline";
+  }
+}
+
 function InstanceDetail() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
   const [instance, setInstance] = useState<Instance | null>(null);
-  const [metrics, setMetrics] = useState<Metric[]>([]);
+  const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
+  const [updates, setUpdates] = useState<AvailableUpdate[]>([]);
   const [heartbeats, setHeartbeats] = useState<Heartbeat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [command, setCommand] = useState("");
-  const [sending, setSending] = useState(false);
-  const { connected, lastMessage } = useWebSocket();
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [triggeringUpdate, setTriggeringUpdate] = useState<string | null>(null);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [inst, sysInfo, upds, hbs] = await Promise.all([
+        getInstance(id),
+        getInstanceSystemInfo(id),
+        getInstanceUpdates(id),
+        getInstanceHeartbeats(id),
+      ]);
+      setInstance(inst);
+      setSystemInfo(sysInfo);
+      setUpdates(upds);
+      setHeartbeats(hbs);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Failed to fetch instance data"));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        setLoading(true);
-        setError(null);
-        const [inst, mets, hbs] = await Promise.all([
-          getInstance(id),
-          getInstanceMetrics(id),
-          getInstanceHeartbeats(id),
-        ]);
-        setInstance(inst);
-        setMetrics(mets);
-        setHeartbeats(hbs);
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error("Failed to fetch instance data"));
-      } finally {
-        setLoading(false);
-      }
-    }
-
     fetchData();
+    // Poll for updates every 30 seconds
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
   }, [id]);
 
-  // Update instance from WebSocket messages
-  useEffect(() => {
-    if (lastMessage && lastMessage.instanceId === id && lastMessage.data.instance) {
-      setInstance(lastMessage.data.instance);
-    }
-  }, [lastMessage, id]);
-
-  const handleSendCommand = async () => {
-    if (!command.trim()) return;
-
+  const handleTriggerUpdate = async (update: AvailableUpdate) => {
+    const updateKey = `${update.updateType}-${update.slug || update.name || ""}`;
     try {
-      setSending(true);
-      await sendCommand(id, command);
-      setCommand("");
+      setTriggeringUpdate(updateKey);
+      const result = await triggerUpdate(
+        id,
+        update.updateType,
+        update.updateType === "addon" ? update.slug || undefined : undefined
+      );
+      if (result.success) {
+        toast.success(result.message || `Update triggered for ${update.updateType}`);
+        // Refresh data after triggering update
+        setTimeout(fetchData, 2000);
+      } else {
+        toast.error(result.error || "Failed to trigger update");
+      }
     } catch (err) {
-      console.error("Failed to send command:", err);
+      console.error("Failed to trigger update:", err);
+      toast.error("Failed to trigger update. Please try again.");
     } finally {
-      setSending(false);
+      setTriggeringUpdate(null);
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isDeleting) return;
+    
+    try {
+      setIsDeleting(true);
+      await deleteInstance(id);
+      setDeleteDialogOpen(false);
+      toast.success(`Instance "${instance?.name}" deleted successfully`);
+      navigate({ to: "/" });
+    } catch (err) {
+      console.error("Failed to delete instance:", err);
+      toast.error("Failed to delete instance. Please try again.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -89,21 +217,50 @@ function InstanceDetail() {
     return new Date(timestamp).toLocaleString();
   }
 
-  function formatUptime(seconds: number | null): string {
-    if (!seconds) return "N/A";
-    const days = Math.floor(seconds / 86400);
-    const hours = Math.floor((seconds % 86400) / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    if (days > 0) return `${days}d ${hours}h`;
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    return `${minutes}m`;
-  }
-
   return (
     <div className="container mx-auto p-4 space-y-6">
-      <div>
-        <h1 className="text-2xl font-medium mb-2">{instance.name}</h1>
-        <p className="text-sm text-muted-foreground">{instance.mqttClientId}</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-medium mb-2">{instance.name}</h1>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<Button variant="outline" size="sm" />}
+          >
+            <DotsThreeVerticalIcon className="size-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => {
+                setDeleteDialogOpen(true);
+              }}
+            >
+              <TrashIcon className="size-4 mr-2" />
+              Delete Instance
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Instance</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete <strong>{instance.name}</strong>? This action cannot be undone and will delete all associated data including metrics and heartbeats.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {/* Instance Info */}
@@ -118,9 +275,9 @@ function InstanceDetail() {
               {instance.status}
             </Badge>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Last Seen:</span>
-            <span>{instance.lastSeen ? formatTimestamp(instance.lastSeen) : "Never"}</span>
+          <div className="flex justify-between items-center">
+            <span className="text-muted-foreground">Last Heartbeat:</span>
+            <HeartbeatIndicator lastSeen={instance.lastSeen} />
           </div>
           {instance.enrolledAt && (
             <div className="flex justify-between">
@@ -135,110 +292,161 @@ function InstanceDetail() {
         </CardContent>
       </Card>
 
-      {/* Send Command */}
+      {/* System Information */}
+      {systemInfo && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">System Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {systemInfo.homeassistant && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Home Assistant:</span>
+                <span>{systemInfo.homeassistant}</span>
+              </div>
+            )}
+            {systemInfo.supervisor && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Supervisor:</span>
+                <span>{systemInfo.supervisor}</span>
+              </div>
+            )}
+            {systemInfo.hassos && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">OS:</span>
+                <span>{systemInfo.hassos}</span>
+              </div>
+            )}
+            {systemInfo.hostname && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Hostname:</span>
+                <span>{systemInfo.hostname}</span>
+              </div>
+            )}
+            {systemInfo.operatingSystem && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Operating System:</span>
+                <span>{systemInfo.operatingSystem}</span>
+              </div>
+            )}
+            {systemInfo.machine && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Machine:</span>
+                <span>{systemInfo.machine}</span>
+              </div>
+            )}
+            {systemInfo.arch && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Architecture:</span>
+                <span>{systemInfo.arch}</span>
+              </div>
+            )}
+            {systemInfo.channel && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Channel:</span>
+                <Badge variant="outline">{systemInfo.channel}</Badge>
+              </div>
+            )}
+            {systemInfo.state && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">State:</span>
+                <Badge variant={systemInfo.state === "running" ? "default" : "secondary"}>
+                  {systemInfo.state}
+                </Badge>
+              </div>
+            )}
+            {systemInfo.docker && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Docker:</span>
+                <span>{systemInfo.docker}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-xs text-muted-foreground pt-2">
+              <span>Last updated:</span>
+              <span>{formatTimestamp(systemInfo.updatedAt)}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Available Updates */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Send Command</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="command">Command</Label>
-            <Input
-              id="command"
-              value={command}
-              onChange={(e) => setCommand(e.target.value)}
-              placeholder="e.g., get_status, get_metrics"
-            />
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm">Available Updates</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={fetchData}
+              className="h-7 w-7 p-0"
+              title="Refresh"
+            >
+              <ArrowClockwiseIcon className="size-4" />
+            </Button>
           </div>
-          <Button onClick={handleSendCommand} disabled={sending || !command.trim()}>
-            {sending ? "Sending..." : "Send Command"}
-          </Button>
+        </CardHeader>
+        <CardContent>
+          {updates.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No updates available</p>
+          ) : (
+            <div className="space-y-3">
+              {updates.map((update) => {
+                const updateKey = `${update.updateType}-${update.slug || update.name || ""}`;
+                const isTriggering = triggeringUpdate === updateKey;
+                
+                return (
+                  <div key={update.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Badge variant={getUpdateTypeBadgeVariant(update.updateType)}>
+                        {update.updateType}
+                      </Badge>
+                      <div>
+                        <p className="text-sm font-medium">
+                          {update.name || update.updateType.charAt(0).toUpperCase() + update.updateType.slice(1)}
+                        </p>
+                        {update.versionLatest && (
+                          <p className="text-xs text-muted-foreground">
+                            Version: {update.versionLatest}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleTriggerUpdate(update)}
+                      disabled={isTriggering || instance.status !== "online"}
+                    >
+                      {isTriggering ? "Updating..." : "Update"}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Latest Metrics */}
-      {metrics.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Latest Metrics</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {metrics.slice(0, 5).map((metric) => (
-                <div key={metric.id} className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Timestamp:</span>
-                    <span>{formatTimestamp(metric.timestamp)}</span>
-                  </div>
-                  {metric.uptimeSeconds !== null && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Uptime:</span>
-                      <span>{formatUptime(metric.uptimeSeconds)}</span>
-                    </div>
-                  )}
-                  {metric.version && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Version:</span>
-                      <span>{metric.version}</span>
-                    </div>
-                  )}
-                  {metric.stabilityScore !== null && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Stability:</span>
-                      <span>{(metric.stabilityScore * 100).toFixed(1)}%</span>
-                    </div>
-                  )}
-                  {metric.metadata && (
-                    <div className="mt-2">
-                      <span className="text-muted-foreground text-xs">Metadata:</span>
-                      <pre className="text-xs bg-muted p-2 rounded mt-1 overflow-auto">
-                        {JSON.stringify(JSON.parse(metric.metadata), null, 2)}
-                      </pre>
-                    </div>
-                  )}
-                  <Separator />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Availability Timeline */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Availability (Last 24h)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AvailabilityTimeline heartbeats={heartbeats} />
+        </CardContent>
+      </Card>
 
-      {/* Recent Heartbeats */}
-      {heartbeats.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Recent Heartbeats</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 text-sm">
-              {heartbeats.slice(0, 10).map((heartbeat) => (
-                <div key={heartbeat.id} className="flex justify-between items-center">
-                  <span className="text-muted-foreground">{formatTimestamp(heartbeat.timestamp)}</span>
-                  <Badge variant={heartbeat.status === "online" ? "default" : "secondary"}>
-                    {heartbeat.status}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Latency Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Latency</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <LatencyChart heartbeats={heartbeats} />
+        </CardContent>
+      </Card>
 
-      {/* Debug Panel */}
-      <DebugPanel
-        title="Debug: Instance Data"
-        data={{
-          instance,
-          metrics: metrics.slice(0, 3),
-          heartbeats: heartbeats.slice(0, 3),
-          websocket: {
-            connected,
-            lastMessage: lastMessage?.instanceId === id ? lastMessage : null,
-          },
-        }}
-      />
     </div>
   );
 }
-

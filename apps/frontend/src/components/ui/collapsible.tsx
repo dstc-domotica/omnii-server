@@ -54,11 +54,17 @@ function Collapsible({
 
 interface CollapsibleTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
+  asChild?: boolean;
 }
 
 const CollapsibleTrigger = React.forwardRef<HTMLButtonElement, CollapsibleTriggerProps>(
-  ({ children, className, ...props }, ref) => {
+  ({ children, className, asChild, ...props }, ref) => {
     const { open, onOpenChange } = useCollapsibleContext();
+
+    // Filter out asChild if not supported (for now we don't support it)
+    if (asChild) {
+      console.warn("CollapsibleTrigger does not support asChild prop. Please use the Button component directly with onClick.");
+    }
 
     return (
       <button
