@@ -1,4 +1,5 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { isApiError } from "../http/errors";
 import { errorResponse, successResponse } from "../http/responses";
 import {
@@ -8,7 +9,6 @@ import {
 	InstancePublic,
 	InstanceSystemInfoRecord,
 	InstanceUpdateRecord,
-	successEnvelope,
 	TriggerUpdateBody,
 	TriggerUpdateResult,
 } from "../openapi/schemas";
@@ -30,7 +30,11 @@ function handleRouteError(
 	error: unknown,
 ) {
 	if (isApiError(error)) {
-		return errorResponse(c, error.status, error.message, error.code);
+		return errorResponse(
+			c,
+			error.status as ContentfulStatusCode,
+			error.message,
+		);
 	}
 	return errorResponse(c, 500, "Internal Server Error");
 }
@@ -44,7 +48,7 @@ app.openapi(
 			200: {
 				content: {
 					"application/json": {
-						schema: successEnvelope(z.array(InstancePublic)),
+						schema: z.array(InstancePublic),
 					},
 				},
 				description: "Instances list",
@@ -81,7 +85,7 @@ app.openapi(
 		responses: {
 			200: {
 				content: {
-					"application/json": { schema: successEnvelope(InstancePublic) },
+					"application/json": { schema: InstancePublic },
 				},
 				description: "Instance details",
 			},
@@ -124,9 +128,7 @@ app.openapi(
 			200: {
 				content: {
 					"application/json": {
-						schema: successEnvelope(
-							z.union([InstanceSystemInfoRecord, z.null()]),
-						),
+						schema: z.union([InstanceSystemInfoRecord, z.null()]),
 					},
 				},
 				description: "Instance system info",
@@ -170,7 +172,7 @@ app.openapi(
 			200: {
 				content: {
 					"application/json": {
-						schema: successEnvelope(z.array(InstanceUpdateRecord)),
+						schema: z.array(InstanceUpdateRecord),
 					},
 				},
 				description: "Instance updates",
@@ -221,7 +223,7 @@ app.openapi(
 			200: {
 				content: {
 					"application/json": {
-						schema: successEnvelope(TriggerUpdateResult),
+						schema: TriggerUpdateResult,
 					},
 				},
 				description: "Update triggered",
@@ -282,7 +284,7 @@ app.openapi(
 			200: {
 				content: {
 					"application/json": {
-						schema: successEnvelope(z.array(HeartbeatRecord)),
+						schema: z.array(HeartbeatRecord),
 					},
 				},
 				description: "Instance heartbeats",
@@ -330,7 +332,7 @@ app.openapi(
 			200: {
 				content: {
 					"application/json": {
-						schema: successEnvelope(DeleteInstanceResult),
+						schema: DeleteInstanceResult,
 					},
 				},
 				description: "Instance deleted",

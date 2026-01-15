@@ -1,8 +1,13 @@
-import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import {
+	createRoute,
+	OpenAPIHono,
+	type RouteConfigToTypedResponse,
+} from "@hono/zod-openapi";
 import { apiReference } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { buildApiBaseUrl, getHostForGrpc, serverConfig } from "./config/server";
 import { isApiError } from "./http/errors";
 import { errorResponse, successResponse } from "./http/responses";
@@ -11,12 +16,17 @@ import {
 	ErrorResponse,
 	HealthResponse,
 	SimpleHealthResponse,
-	successEnvelope,
 } from "./openapi/schemas";
 import enrollmentRoutes from "./routes/enrollment";
 import instanceRoutes from "./routes/instances";
 
-const app = new OpenAPIHono();
+type AppEnv = {
+	Variables: {
+		requestId: string;
+	};
+};
+
+const app = new OpenAPIHono<AppEnv>();
 
 app.use("*", logger());
 app.use(
@@ -37,11 +47,11 @@ app.use("*", async (c, next) => {
 
 app.onError((err, c) => {
 	if (err instanceof HTTPException) {
-		return errorResponse(c, err.status, err.message);
+		return errorResponse(c, err.status as ContentfulStatusCode, err.message);
 	}
 
 	if (isApiError(err)) {
-		return errorResponse(c, err.status, err.message, err.code);
+		return errorResponse(c, err.status as ContentfulStatusCode, err.message);
 	}
 
 	const requestId = c.get("requestId");
@@ -68,76 +78,84 @@ app.get(
 		spec: {
 			url: "/openapi.json",
 		},
-	}),
+	} as Parameters<typeof apiReference>[0]),
 );
 
-app.openapi(
-	createRoute({
-		method: "get",
-		path: "/",
-		tags: ["Health"],
-		responses: {
-			200: {
-				content: {
-					"application/json": { schema: successEnvelope(HealthResponse) },
-				},
-				description: "Service status",
+const rootHealthRoute = createRoute({
+	method: "get",
+	path: "/",
+	tags: ["Health"],
+	responses: {
+		200: {
+			content: {
+				"application/json": { schema: HealthResponse },
 			},
+			description: "Service status",
 		},
-	}),
-	(c) => {
+	},
+});
+
+app.openapi(
+	rootHealthRoute,
+	(c): RouteConfigToTypedResponse<typeof rootHealthRoute> => {
 		return successResponse(c, {
 			status: "ok",
 			service: "Omnii Server",
 			version: "1.0.0",
-		});
+		}) as unknown as RouteConfigToTypedResponse<typeof rootHealthRoute>;
 	},
 );
 
-app.openapi(
-	createRoute({
-		method: "get",
-		path: "/health",
-		tags: ["Health"],
-		responses: {
-			200: {
-				content: {
-					"application/json": { schema: successEnvelope(SimpleHealthResponse) },
-				},
-				description: "Health check",
+const healthRoute = createRoute({
+	method: "get",
+	path: "/health",
+	tags: ["Health"],
+	responses: {
+		200: {
+			content: {
+				"application/json": { schema: SimpleHealthResponse },
 			},
+			description: "Health check",
 		},
-	}),
-	(c) => {
-		return successResponse(c, { status: "healthy" });
+	},
+});
+
+app.openapi(
+	healthRoute,
+	(c): RouteConfigToTypedResponse<typeof healthRoute> => {
+		return successResponse(c, {
+			status: "healthy",
+		}) as unknown as RouteConfigToTypedResponse<typeof healthRoute>;
 	},
 );
 
-app.openapi(
-	createRoute({
-		method: "get",
-		path: "/config",
-		tags: ["Config"],
-		responses: {
-			200: {
-				content: {
-					"application/json": { schema: successEnvelope(ConfigResponse) },
-				},
-				description: "Frontend configuration",
+const configRoute = createRoute({
+	method: "get",
+	path: "/config",
+	tags: ["Config"],
+	responses: {
+		200: {
+			content: {
+				"application/json": { schema: ConfigResponse },
 			},
-			500: {
-				content: {
-					"application/json": { schema: ErrorResponse },
-				},
-				description: "Internal server error",
-			},
+			description: "Frontend configuration",
 		},
-	}),
-	(c) => {
+		500: {
+			content: {
+				"application/json": { schema: ErrorResponse },
+			},
+			description: "Internal server error",
+		},
+	},
+});
+
+app.openapi(
+	configRoute,
+	(c): RouteConfigToTypedResponse<typeof configRoute> => {
 		return successResponse(c, {
 			apiBaseUrl: buildApiBaseUrl(),
 			grpcAddress: `${getHostForGrpc()}:${serverConfig.grpcPort}`,
-		});
+		}) as unknown as RouteConfigToTypedResponse<typeof configRoute>;
 	},
 );
 

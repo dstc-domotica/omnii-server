@@ -10,7 +10,6 @@ import {
 	EnrollmentCodeCreateResponse,
 	EnrollmentCodeRecord,
 	ErrorResponse,
-	successEnvelope,
 } from "../openapi/schemas";
 import {
 	createEnrollmentCode,
@@ -32,7 +31,7 @@ const createEnrollmentCodeRoute = createRoute({
 		200: {
 			content: {
 				"application/json": {
-					schema: successEnvelope(EnrollmentCodeCreateResponse),
+					schema: EnrollmentCodeCreateResponse,
 				},
 			},
 			description: "Enrollment code created",
@@ -88,7 +87,7 @@ const listEnrollmentCodesRoute = createRoute({
 		200: {
 			content: {
 				"application/json": {
-					schema: successEnvelope(z.array(EnrollmentCodeRecord)),
+					schema: z.array(EnrollmentCodeRecord),
 				},
 			},
 			description: "Enrollment codes",
@@ -145,7 +144,7 @@ const deactivateEnrollmentCodeRoute = createRoute({
 		200: {
 			content: {
 				"application/json": {
-					schema: successEnvelope(DeactivateEnrollmentResult),
+					schema: DeactivateEnrollmentResult,
 				},
 			},
 			description: "Enrollment code deactivated",

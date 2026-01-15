@@ -1,20 +1,8 @@
 import { z } from "@hono/zod-openapi";
 
-export const ErrorDetail = z.object({
-	message: z.string(),
-	code: z.string().optional(),
-});
-
 export const ErrorResponse = z.object({
-	success: z.literal(false),
-	error: ErrorDetail,
+	message: z.string(),
 });
-
-export const successEnvelope = <T extends z.ZodTypeAny>(data: T) =>
-	z.object({
-		success: z.literal(true),
-		data,
-	});
 
 export const HealthResponse = z.object({
 	status: z.string(),
