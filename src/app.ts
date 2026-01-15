@@ -3,7 +3,7 @@ import {
 	OpenAPIHono,
 	type RouteConfigToTypedResponse,
 } from "@hono/zod-openapi";
-import { apiReference } from "@scalar/hono-api-reference";
+import { Scalar } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
@@ -11,12 +11,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { buildApiBaseUrl, getHostForGrpc, serverConfig } from "./config/server";
 import { isApiError } from "./http/errors";
 import { errorResponse, successResponse } from "./http/responses";
-import {
-	ConfigResponse,
-	ErrorResponse,
-	HealthResponse,
-	SimpleHealthResponse,
-} from "./openapi/schemas";
+import { ConfigResponse, ErrorResponse } from "./openapi/schemas";
 import enrollmentRoutes from "./routes/enrollment";
 import instanceRoutes from "./routes/instances";
 
@@ -27,6 +22,8 @@ type AppEnv = {
 };
 
 const app = new OpenAPIHono<AppEnv>();
+const apiVersion = "v1";
+const apiBasePath = `/${apiVersion}`;
 
 app.use("*", logger());
 app.use(
@@ -59,7 +56,7 @@ app.onError((err, c) => {
 	return errorResponse(c, 500, "Internal Server Error");
 });
 
-app.doc("/openapi.json", {
+app.doc(`${apiBasePath}/openapi.json`, {
 	openapi: "3.0.0",
 	info: {
 		title: "Omnii API",
@@ -67,71 +64,21 @@ app.doc("/openapi.json", {
 	},
 	servers: [
 		{
-			url: buildApiBaseUrl(),
+			url: `${buildApiBaseUrl()}${apiBasePath}`,
 		},
 	],
 });
 
 app.get(
 	"/docs",
-	apiReference({
-		spec: {
-			url: "/openapi.json",
-		},
-	} as Parameters<typeof apiReference>[0]),
-);
-
-const rootHealthRoute = createRoute({
-	method: "get",
-	path: "/",
-	tags: ["Health"],
-	responses: {
-		200: {
-			content: {
-				"application/json": { schema: HealthResponse },
-			},
-			description: "Service status",
-		},
-	},
-});
-
-app.openapi(
-	rootHealthRoute,
-	(c): RouteConfigToTypedResponse<typeof rootHealthRoute> => {
-		return successResponse(c, {
-			status: "ok",
-			service: "Omnii Server",
-			version: "1.0.0",
-		}) as unknown as RouteConfigToTypedResponse<typeof rootHealthRoute>;
-	},
-);
-
-const healthRoute = createRoute({
-	method: "get",
-	path: "/health",
-	tags: ["Health"],
-	responses: {
-		200: {
-			content: {
-				"application/json": { schema: SimpleHealthResponse },
-			},
-			description: "Health check",
-		},
-	},
-});
-
-app.openapi(
-	healthRoute,
-	(c): RouteConfigToTypedResponse<typeof healthRoute> => {
-		return successResponse(c, {
-			status: "healthy",
-		}) as unknown as RouteConfigToTypedResponse<typeof healthRoute>;
-	},
+	Scalar({
+		url: `${apiBasePath}/openapi.json`,
+	}),
 );
 
 const configRoute = createRoute({
 	method: "get",
-	path: "/config",
+	path: `${apiBasePath}/config`,
 	tags: ["Config"],
 	responses: {
 		200: {
@@ -153,13 +100,13 @@ app.openapi(
 	configRoute,
 	(c): RouteConfigToTypedResponse<typeof configRoute> => {
 		return successResponse(c, {
-			apiBaseUrl: buildApiBaseUrl(),
+			apiBaseUrl: `${buildApiBaseUrl()}${apiBasePath}`,
 			grpcAddress: `${getHostForGrpc()}:${serverConfig.grpcPort}`,
 		}) as unknown as RouteConfigToTypedResponse<typeof configRoute>;
 	},
 );
 
-app.route("/", enrollmentRoutes);
-app.route("/", instanceRoutes);
+app.route(apiBasePath, enrollmentRoutes);
+app.route(apiBasePath, instanceRoutes);
 
 export default app;
