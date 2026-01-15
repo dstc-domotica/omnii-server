@@ -1,11 +1,7 @@
 import app from "./app";
 import { serverConfig } from "./config/server";
 import { startGrpcServer } from "./grpc/server";
-import { startCleanupJob } from "./jobs/cleanup";
-
 export function startServer(): void {
-	startCleanupJob();
-
 	setTimeout(async () => {
 		try {
 			await startGrpcServer(serverConfig.grpcPort);

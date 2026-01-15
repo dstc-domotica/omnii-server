@@ -277,7 +277,7 @@ app.openapi(
 				id: z.string(),
 			}),
 			query: z.object({
-				limit: z.coerce.number().int().min(1).optional(),
+				minutes: z.coerce.number().int().min(1).optional(),
 			}),
 		},
 		responses: {
@@ -306,10 +306,10 @@ app.openapi(
 	async (c) => {
 		try {
 			const { id: instanceId } = c.req.valid("param");
-			const { limit } = c.req.valid("query");
+			const { minutes } = c.req.valid("query");
 			const instanceHeartbeats = await getInstanceHeartbeats(
 				instanceId,
-				limit ?? 100,
+				minutes ?? 60,
 			);
 			return successResponse(c, instanceHeartbeats);
 		} catch (error) {

@@ -1,15 +1,17 @@
-import { Database } from "bun:sqlite";
-import { drizzle } from "drizzle-orm/bun-sqlite";
-import { migrate } from "drizzle-orm/bun-sqlite/migrator";
+import { drizzle } from "drizzle-orm/postgres-js";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
+import postgres from "postgres";
 import { env } from "../config/env";
 import * as schema from "./schema";
 
-const dbPath = env.DB_PATH || "omnii.db";
-const sqlite = new Database(dbPath);
-export const db = drizzle(sqlite, { schema });
+const client = postgres(env.DATABASE_URL);
+export const db = drizzle(client, { schema });
 
 // Run migrations on startup
 // Path is relative to the working directory when the app runs
-migrate(db, { migrationsFolder: "./src/db/migrations" });
+const migrationClient = postgres(env.DATABASE_URL, { max: 1 });
+const migrationDb = drizzle(migrationClient);
+await migrate(migrationDb, { migrationsFolder: "./src/db/migrations" });
+await migrationClient.end();
 
 export * from "./schema";

@@ -1,39 +1,39 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { bigint, integer, pgTable, text } from "drizzle-orm/pg-core";
 
-export const instances = sqliteTable("instances", {
+export const instances = pgTable("instances", {
 	id: text("id").primaryKey(),
 	name: text("name").notNull(),
 	enrollmentCode: text("enrollment_code"),
-	enrolledAt: integer("enrolled_at"),
+	enrolledAt: bigint("enrolled_at", { mode: "number" }),
 	token: text("token").unique(),
 	status: text("status").notNull().default("offline"), // online, offline, error
-	lastSeen: integer("last_seen"),
-	createdAt: integer("created_at")
+	lastSeen: bigint("last_seen", { mode: "number" }),
+	createdAt: bigint("created_at", { mode: "number" })
 		.notNull()
 		.$defaultFn(() => Date.now()),
-	updatedAt: integer("updated_at")
+	updatedAt: bigint("updated_at", { mode: "number" })
 		.notNull()
 		.$defaultFn(() => Date.now()),
 });
 
-export const enrollmentCodes = sqliteTable("enrollment_codes", {
+export const enrollmentCodes = pgTable("enrollment_codes", {
 	id: text("id").primaryKey(),
 	code: text("code").notNull().unique(),
 	instanceId: text("instance_id"),
-	createdAt: integer("created_at")
+	createdAt: bigint("created_at", { mode: "number" })
 		.notNull()
 		.$defaultFn(() => Date.now()),
-	expiresAt: integer("expires_at").notNull(),
-	usedAt: integer("used_at"),
-	deactivatedAt: integer("deactivated_at"),
+	expiresAt: bigint("expires_at", { mode: "number" }).notNull(),
+	usedAt: bigint("used_at", { mode: "number" }),
+	deactivatedAt: bigint("deactivated_at", { mode: "number" }),
 });
 
-export const heartbeats = sqliteTable("heartbeats", {
+export const heartbeats = pgTable("heartbeats", {
 	id: text("id").primaryKey(),
 	instanceId: text("instance_id")
 		.notNull()
 		.references(() => instances.id),
-	timestamp: integer("timestamp")
+	timestamp: bigint("timestamp", { mode: "number" })
 		.notNull()
 		.$defaultFn(() => Date.now()),
 	status: text("status").notNull(), // online, offline, error
@@ -41,7 +41,7 @@ export const heartbeats = sqliteTable("heartbeats", {
 });
 
 // System information from Supervisor /info API
-export const instanceSystemInfo = sqliteTable("instance_system_info", {
+export const instanceSystemInfo = pgTable("instance_system_info", {
 	id: text("id").primaryKey(),
 	instanceId: text("instance_id")
 		.notNull()
@@ -57,13 +57,13 @@ export const instanceSystemInfo = sqliteTable("instance_system_info", {
 	arch: text("arch"),
 	channel: text("channel"), // stable, beta, dev
 	state: text("state"), // running, etc.
-	updatedAt: integer("updated_at")
+	updatedAt: bigint("updated_at", { mode: "number" })
 		.notNull()
 		.$defaultFn(() => Date.now()),
 });
 
 // Available updates from Supervisor /available_updates API
-export const instanceUpdates = sqliteTable("instance_updates", {
+export const instanceUpdates = pgTable("instance_updates", {
 	id: text("id").primaryKey(),
 	instanceId: text("instance_id")
 		.notNull()
@@ -75,9 +75,9 @@ export const instanceUpdates = sqliteTable("instance_updates", {
 	version: text("version"),
 	versionLatest: text("version_latest"),
 	updateAvailable: integer("update_available"),
-	reportGeneratedAt: integer("report_generated_at"),
+	reportGeneratedAt: bigint("report_generated_at", { mode: "number" }),
 	panelPath: text("panel_path"),
-	createdAt: integer("created_at")
+	createdAt: bigint("created_at", { mode: "number" })
 		.notNull()
 		.$defaultFn(() => Date.now()),
 });

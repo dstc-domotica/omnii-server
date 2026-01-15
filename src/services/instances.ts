@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, or } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, or } from "drizzle-orm";
 import {
 	db,
 	heartbeats,
@@ -85,15 +85,20 @@ export async function getAvailableUpdates(
 
 export async function getInstanceHeartbeats(
 	instanceId: string,
-	limit: number,
+	minutes: number,
 ): Promise<HeartbeatModel[]> {
 	await requireInstance(instanceId);
+	const cutoffTime = Date.now() - minutes * 60 * 1000;
 	return db
 		.select()
 		.from(heartbeats)
-		.where(eq(heartbeats.instanceId, instanceId))
-		.orderBy(desc(heartbeats.timestamp))
-		.limit(limit);
+		.where(
+			and(
+				eq(heartbeats.instanceId, instanceId),
+				gte(heartbeats.timestamp, cutoffTime),
+			),
+		)
+		.orderBy(desc(heartbeats.timestamp));
 }
 
 export async function triggerInstanceUpdate(
