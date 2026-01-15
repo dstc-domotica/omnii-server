@@ -1,61 +1,209 @@
-import { Hono } from "hono";
 import {
-  createEnrollmentCode,
-  getActiveEnrollmentCodes,
-  getAllEnrollmentCodes,
-  deactivateEnrollmentCode,
+	createRoute,
+	OpenAPIHono,
+	type RouteConfigToTypedResponse,
+	z,
+} from "@hono/zod-openapi";
+import { errorResponse, successResponse } from "../http/responses";
+import {
+	DeactivateEnrollmentResult,
+	EnrollmentCodeCreateResponse,
+	EnrollmentCodeRecord,
+	ErrorResponse,
+	successEnvelope,
+} from "../openapi/schemas";
+import {
+	createEnrollmentCode,
+	deactivateEnrollmentCode,
+	getActiveEnrollmentCodes,
+	getAllEnrollmentCodes,
 } from "../services/enrollment";
 
-const app = new Hono();
+const app = new OpenAPIHono();
 
 // NOTE: Enrollment is now done via gRPC only (Enroll RPC)
 // The HTTP POST /enroll endpoint has been removed
 
-/**
- * POST /enrollment-codes
- * Generate a new enrollment code (always 1 hour validity)
- */
-app.post("/enrollment-codes", async (c) => {
-  try {
-    const result = await createEnrollmentCode();
-    return c.json(result);
-  } catch (error: any) {
-    return c.json({ error: error.message || "Failed to create enrollment code" }, 500);
-  }
+const createEnrollmentCodeRoute = createRoute({
+	method: "post",
+	path: "/enrollment-codes",
+	tags: ["Enrollment"],
+	responses: {
+		200: {
+			content: {
+				"application/json": {
+					schema: successEnvelope(EnrollmentCodeCreateResponse),
+				},
+			},
+			description: "Enrollment code created",
+		},
+		500: {
+			content: {
+				"application/json": { schema: ErrorResponse },
+			},
+			description: "Failed to create enrollment code",
+		},
+	},
 });
 
-/**
- * GET /enrollment-codes
- * List all enrollment codes (including used and expired)
- * Query param: all=true to get all codes, otherwise only active codes
- */
-app.get("/enrollment-codes", async (c) => {
-  try {
-    const all = c.req.query("all") === "true";
-    const codes = all ? await getAllEnrollmentCodes() : await getActiveEnrollmentCodes();
-    return c.json(codes);
-  } catch (error: any) {
-    return c.json({ error: error.message || "Failed to fetch enrollment codes" }, 500);
-  }
+app.openapi(
+	createEnrollmentCodeRoute,
+	async (
+		c,
+	): Promise<RouteConfigToTypedResponse<typeof createEnrollmentCodeRoute>> => {
+		try {
+			const result = await createEnrollmentCode();
+			return successResponse(
+				c,
+				result,
+			) as unknown as RouteConfigToTypedResponse<
+				typeof createEnrollmentCodeRoute
+			>;
+		} catch (error: unknown) {
+			const message =
+				error instanceof Error
+					? error.message
+					: "Failed to create enrollment code";
+			return errorResponse(
+				c,
+				500,
+				message,
+			) as unknown as RouteConfigToTypedResponse<
+				typeof createEnrollmentCodeRoute
+			>;
+		}
+	},
+);
+
+const listEnrollmentCodesRoute = createRoute({
+	method: "get",
+	path: "/enrollment-codes",
+	tags: ["Enrollment"],
+	request: {
+		query: z.object({
+			all: z.enum(["true", "false"]).optional(),
+		}),
+	},
+	responses: {
+		200: {
+			content: {
+				"application/json": {
+					schema: successEnvelope(z.array(EnrollmentCodeRecord)),
+				},
+			},
+			description: "Enrollment codes",
+		},
+		500: {
+			content: {
+				"application/json": { schema: ErrorResponse },
+			},
+			description: "Failed to fetch enrollment codes",
+		},
+	},
 });
 
-/**
- * POST /enrollment-codes/:id/deactivate
- * Deactivate an enrollment code
- */
-app.post("/enrollment-codes/:id/deactivate", async (c) => {
-  try {
-    const id = c.req.param("id");
-    if (!id) {
-      return c.json({ error: "Missing enrollment code ID" }, 400);
-    }
+app.openapi(
+	listEnrollmentCodesRoute,
+	async (
+		c,
+	): Promise<RouteConfigToTypedResponse<typeof listEnrollmentCodesRoute>> => {
+		try {
+			const { all } = c.req.valid("query");
+			const includeAll = all === "true";
+			const codes = includeAll
+				? await getAllEnrollmentCodes()
+				: await getActiveEnrollmentCodes();
+			return successResponse(c, codes) as unknown as RouteConfigToTypedResponse<
+				typeof listEnrollmentCodesRoute
+			>;
+		} catch (error: unknown) {
+			const message =
+				error instanceof Error
+					? error.message
+					: "Failed to fetch enrollment codes";
+			return errorResponse(
+				c,
+				500,
+				message,
+			) as unknown as RouteConfigToTypedResponse<
+				typeof listEnrollmentCodesRoute
+			>;
+		}
+	},
+);
 
-    await deactivateEnrollmentCode(id);
-    return c.json({ success: true });
-  } catch (error: any) {
-    return c.json({ error: error.message || "Failed to deactivate enrollment code" }, 500);
-  }
+const deactivateEnrollmentCodeRoute = createRoute({
+	method: "post",
+	path: "/enrollment-codes/{id}/deactivate",
+	tags: ["Enrollment"],
+	request: {
+		params: z.object({
+			id: z.string(),
+		}),
+	},
+	responses: {
+		200: {
+			content: {
+				"application/json": {
+					schema: successEnvelope(DeactivateEnrollmentResult),
+				},
+			},
+			description: "Enrollment code deactivated",
+		},
+		400: {
+			content: {
+				"application/json": { schema: ErrorResponse },
+			},
+			description: "Missing enrollment code ID",
+		},
+		500: {
+			content: {
+				"application/json": { schema: ErrorResponse },
+			},
+			description: "Failed to deactivate enrollment code",
+		},
+	},
 });
+
+app.openapi(
+	deactivateEnrollmentCodeRoute,
+	async (
+		c,
+	): Promise<
+		RouteConfigToTypedResponse<typeof deactivateEnrollmentCodeRoute>
+	> => {
+		try {
+			const { id } = c.req.valid("param");
+			if (!id) {
+				return errorResponse(
+					c,
+					400,
+					"Missing enrollment code ID",
+				) as unknown as RouteConfigToTypedResponse<
+					typeof deactivateEnrollmentCodeRoute
+				>;
+			}
+
+			await deactivateEnrollmentCode(id);
+			return successResponse(c, {
+				deactivated: true,
+			}) as unknown as RouteConfigToTypedResponse<
+				typeof deactivateEnrollmentCodeRoute
+			>;
+		} catch (error: unknown) {
+			const message =
+				error instanceof Error
+					? error.message
+					: "Failed to deactivate enrollment code";
+			return errorResponse(
+				c,
+				500,
+				message,
+			) as unknown as RouteConfigToTypedResponse<
+				typeof deactivateEnrollmentCodeRoute
+			>;
+		}
+	},
+);
 
 export default app;
-

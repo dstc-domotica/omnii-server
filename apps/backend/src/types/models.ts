@@ -1,0 +1,60 @@
+export interface InstanceModel {
+	id: string;
+	name: string;
+	enrollmentCode: string | null;
+	enrolledAt: number | null;
+	token: string | null;
+	status: string;
+	lastSeen: number | null;
+	createdAt: number;
+	updatedAt: number;
+}
+
+export interface EnrollmentCodeModel {
+	id: string;
+	code: string;
+	instanceId: string | null;
+	createdAt: number;
+	expiresAt: number;
+	usedAt: number | null;
+	deactivatedAt: number | null;
+}
+
+export interface InstanceSystemInfoModel {
+	id: string;
+	instanceId: string;
+	supervisor: string | null;
+	homeassistant: string | null;
+	hassos: string | null;
+	docker: string | null;
+	hostname: string | null;
+	operatingSystem: string | null;
+	machine: string | null;
+	arch: string | null;
+	channel: string | null;
+	state: string | null;
+	updatedAt: number;
+}
+
+export interface InstanceUpdateModel {
+	id: string;
+	instanceId: string;
+	updateType: string;
+	slug: string | null;
+	name: string | null;
+	icon: string | null;
+	version: string | null;
+	versionLatest: string | null;
+	updateAvailable: number | null;
+	reportGeneratedAt: number | null;
+	panelPath: string | null;
+	createdAt: number;
+}
+
+export interface HeartbeatModel {
+	id: string;
+	instanceId: string;
+	timestamp: number;
+	status: string;
+	latencyMs: number | null;
+}
