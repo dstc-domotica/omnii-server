@@ -1,32 +1,18 @@
 services:
-  migrate:
-    build:
-      context: ./apps/backend
-      dockerfile: Dockerfile
-      target: migrate
-    environment:
-      DB_PATH: /data/omnii.db
-    volumes:
-      - backend-data:/data
-    restart: "no"
-
   backend:
     build:
       context: ./apps/backend
       dockerfile: Dockerfile
-      target: runtime
     environment:
       PORT: 3001
       GRPC_PORT: 50051
+      SERVER_HOST: localhost
       DB_PATH: /data/omnii.db
     volumes:
       - backend-data:/data
     ports:
       - "3001:3001"
       - "50051:50051"
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
     restart: unless-stopped
 
   frontend:
