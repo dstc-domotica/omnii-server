@@ -4,6 +4,28 @@
 var grpc = require('@grpc/grpc-js');
 var omnnii_pb = require('./omnnii_pb.js');
 
+function serialize_omnii_ConnectivityReportRequest(arg) {
+  if (!(arg instanceof omnnii_pb.ConnectivityReportRequest)) {
+    throw new Error('Expected argument of type omnii.ConnectivityReportRequest');
+  }
+  return Buffer.from(arg.serializeBinary());
+}
+
+function deserialize_omnii_ConnectivityReportRequest(buffer_arg) {
+  return omnnii_pb.ConnectivityReportRequest.deserializeBinary(new Uint8Array(buffer_arg));
+}
+
+function serialize_omnii_ConnectivityReportResponse(arg) {
+  if (!(arg instanceof omnnii_pb.ConnectivityReportResponse)) {
+    throw new Error('Expected argument of type omnii.ConnectivityReportResponse');
+  }
+  return Buffer.from(arg.serializeBinary());
+}
+
+function deserialize_omnii_ConnectivityReportResponse(buffer_arg) {
+  return omnnii_pb.ConnectivityReportResponse.deserializeBinary(new Uint8Array(buffer_arg));
+}
+
 function serialize_omnii_EnrollRequest(arg) {
   if (!(arg instanceof omnnii_pb.EnrollRequest)) {
     throw new Error('Expected argument of type omnii.EnrollRequest');
@@ -195,6 +217,17 @@ heartbeat: {
     requestDeserialize: deserialize_omnii_StatsReportRequest,
     responseSerialize: serialize_omnii_StatsReportResponse,
     responseDeserialize: deserialize_omnii_StatsReportResponse,
+  },
+  reportConnectivity: {
+    path: '/omnii.OmniiService/ReportConnectivity',
+    requestStream: false,
+    responseStream: false,
+    requestType: omnnii_pb.ConnectivityReportRequest,
+    responseType: omnnii_pb.ConnectivityReportResponse,
+    requestSerialize: serialize_omnii_ConnectivityReportRequest,
+    requestDeserialize: deserialize_omnii_ConnectivityReportRequest,
+    responseSerialize: serialize_omnii_ConnectivityReportResponse,
+    responseDeserialize: deserialize_omnii_ConnectivityReportResponse,
   },
   // Trigger an update on the addon (server -> addon request)
 triggerUpdate: {

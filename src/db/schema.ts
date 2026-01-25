@@ -46,6 +46,26 @@ export const heartbeats = pgTable("heartbeats", {
 	latencyMs: integer("latency_ms"), // gRPC round-trip time in milliseconds
 });
 
+export const connectivityChecks = pgTable("connectivity_checks", {
+	id: text("id").primaryKey(),
+	instanceId: text("instance_id")
+		.notNull()
+		.references(() => instances.id),
+	timestamp: bigint("timestamp", { mode: "number" })
+		.notNull()
+		.$defaultFn(() => Date.now()),
+	target: text("target").notNull(), // 8.8.8.8, 1.1.1.1
+	status: text("status").notNull(), // reachable, unreachable, timeout
+	latencyMs: integer("latency_ms"),
+	error: text("error"),
+	publicIp: text("public_ip"),
+	ipCountry: text("ip_country"),
+	ipRegion: text("ip_region"),
+	ipCity: text("ip_city"),
+	ipIsp: text("ip_isp"),
+	ipAsn: text("ip_asn"),
+});
+
 // System information from Supervisor /info API
 export const instanceSystemInfo = pgTable("instance_system_info", {
 	id: text("id").primaryKey(),

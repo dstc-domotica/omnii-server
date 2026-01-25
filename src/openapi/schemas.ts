@@ -84,6 +84,22 @@ export const HeartbeatRecord = z.object({
 	latencyMs: z.number().nullable(),
 });
 
+export const ConnectivityRecord = z.object({
+	id: z.string(),
+	instanceId: z.string(),
+	timestamp: z.number(),
+	target: z.string(),
+	status: z.string(),
+	latencyMs: z.number().nullable(),
+	error: z.string().nullable(),
+	publicIp: z.string().nullable(),
+	ipCountry: z.string().nullable(),
+	ipRegion: z.string().nullable(),
+	ipCity: z.string().nullable(),
+	ipIsp: z.string().nullable(),
+	ipAsn: z.string().nullable(),
+});
+
 export const TriggerUpdateBody = z
 	.object({
 		updateType: z.enum(["core", "os", "supervisor", "addon"]),

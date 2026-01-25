@@ -431,6 +431,86 @@ export namespace StatsReportResponse {
     }
 }
 
+export class ConnectivityCheck extends jspb.Message { 
+    getTarget(): string;
+    setTarget(value: string): ConnectivityCheck;
+    getStatus(): string;
+    setStatus(value: string): ConnectivityCheck;
+    getLatencyMs(): number;
+    setLatencyMs(value: number): ConnectivityCheck;
+    getError(): string;
+    setError(value: string): ConnectivityCheck;
+
+    serializeBinary(): Uint8Array;
+    toObject(includeInstance?: boolean): ConnectivityCheck.AsObject;
+    static toObject(includeInstance: boolean, msg: ConnectivityCheck): ConnectivityCheck.AsObject;
+    static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+    static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+    static serializeBinaryToWriter(message: ConnectivityCheck, writer: jspb.BinaryWriter): void;
+    static deserializeBinary(bytes: Uint8Array): ConnectivityCheck;
+    static deserializeBinaryFromReader(message: ConnectivityCheck, reader: jspb.BinaryReader): ConnectivityCheck;
+}
+
+export namespace ConnectivityCheck {
+    export type AsObject = {
+        target: string,
+        status: string,
+        latencyMs: number,
+        error: string,
+    }
+}
+
+export class ConnectivityReportRequest extends jspb.Message { 
+    getClientTimestamp(): number;
+    setClientTimestamp(value: number): ConnectivityReportRequest;
+    getPublicIp(): string;
+    setPublicIp(value: string): ConnectivityReportRequest;
+    clearChecksList(): void;
+    getChecksList(): Array<ConnectivityCheck>;
+    setChecksList(value: Array<ConnectivityCheck>): ConnectivityReportRequest;
+    addChecks(value?: ConnectivityCheck, index?: number): ConnectivityCheck;
+
+    serializeBinary(): Uint8Array;
+    toObject(includeInstance?: boolean): ConnectivityReportRequest.AsObject;
+    static toObject(includeInstance: boolean, msg: ConnectivityReportRequest): ConnectivityReportRequest.AsObject;
+    static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+    static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+    static serializeBinaryToWriter(message: ConnectivityReportRequest, writer: jspb.BinaryWriter): void;
+    static deserializeBinary(bytes: Uint8Array): ConnectivityReportRequest;
+    static deserializeBinaryFromReader(message: ConnectivityReportRequest, reader: jspb.BinaryReader): ConnectivityReportRequest;
+}
+
+export namespace ConnectivityReportRequest {
+    export type AsObject = {
+        clientTimestamp: number,
+        publicIp: string,
+        checksList: Array<ConnectivityCheck.AsObject>,
+    }
+}
+
+export class ConnectivityReportResponse extends jspb.Message { 
+    getAccepted(): boolean;
+    setAccepted(value: boolean): ConnectivityReportResponse;
+    getMessage(): string;
+    setMessage(value: string): ConnectivityReportResponse;
+
+    serializeBinary(): Uint8Array;
+    toObject(includeInstance?: boolean): ConnectivityReportResponse.AsObject;
+    static toObject(includeInstance: boolean, msg: ConnectivityReportResponse): ConnectivityReportResponse.AsObject;
+    static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+    static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+    static serializeBinaryToWriter(message: ConnectivityReportResponse, writer: jspb.BinaryWriter): void;
+    static deserializeBinary(bytes: Uint8Array): ConnectivityReportResponse;
+    static deserializeBinaryFromReader(message: ConnectivityReportResponse, reader: jspb.BinaryReader): ConnectivityReportResponse;
+}
+
+export namespace ConnectivityReportResponse {
+    export type AsObject = {
+        accepted: boolean,
+        message: string,
+    }
+}
+
 export class TriggerUpdateRequest extends jspb.Message { 
     getUpdateType(): string;
     setUpdateType(value: string): TriggerUpdateRequest;

@@ -13,6 +13,7 @@ interface IOmniiServiceService extends grpc.ServiceDefinition<grpc.UntypedServic
     heartbeat: IOmniiServiceService_IHeartbeat;
     reportUpdates: IOmniiServiceService_IReportUpdates;
     reportStats: IOmniiServiceService_IReportStats;
+    reportConnectivity: IOmniiServiceService_IReportConnectivity;
     triggerUpdate: IOmniiServiceService_ITriggerUpdate;
 }
 
@@ -61,6 +62,15 @@ interface IOmniiServiceService_IReportStats extends grpc.MethodDefinition<omnnii
     responseSerialize: grpc.serialize<omnnii_pb.StatsReportResponse>;
     responseDeserialize: grpc.deserialize<omnnii_pb.StatsReportResponse>;
 }
+interface IOmniiServiceService_IReportConnectivity extends grpc.MethodDefinition<omnnii_pb.ConnectivityReportRequest, omnnii_pb.ConnectivityReportResponse> {
+    path: "/omnii.OmniiService/ReportConnectivity";
+    requestStream: false;
+    responseStream: false;
+    requestSerialize: grpc.serialize<omnnii_pb.ConnectivityReportRequest>;
+    requestDeserialize: grpc.deserialize<omnnii_pb.ConnectivityReportRequest>;
+    responseSerialize: grpc.serialize<omnnii_pb.ConnectivityReportResponse>;
+    responseDeserialize: grpc.deserialize<omnnii_pb.ConnectivityReportResponse>;
+}
 interface IOmniiServiceService_ITriggerUpdate extends grpc.MethodDefinition<omnnii_pb.TriggerUpdateRequest, omnnii_pb.TriggerUpdateResponse> {
     path: "/omnii.OmniiService/TriggerUpdate";
     requestStream: false;
@@ -79,6 +89,7 @@ export interface IOmniiServiceServer extends grpc.UntypedServiceImplementation {
     heartbeat: grpc.handleUnaryCall<omnnii_pb.HeartbeatRequest, omnnii_pb.HeartbeatResponse>;
     reportUpdates: grpc.handleUnaryCall<omnnii_pb.UpdateReportRequest, omnnii_pb.UpdateReportResponse>;
     reportStats: grpc.handleUnaryCall<omnnii_pb.StatsReportRequest, omnnii_pb.StatsReportResponse>;
+    reportConnectivity: grpc.handleUnaryCall<omnnii_pb.ConnectivityReportRequest, omnnii_pb.ConnectivityReportResponse>;
     triggerUpdate: grpc.handleUnaryCall<omnnii_pb.TriggerUpdateRequest, omnnii_pb.TriggerUpdateResponse>;
 }
 
@@ -98,6 +109,9 @@ export interface IOmniiServiceClient {
     reportStats(request: omnnii_pb.StatsReportRequest, callback: (error: grpc.ServiceError | null, response: omnnii_pb.StatsReportResponse) => void): grpc.ClientUnaryCall;
     reportStats(request: omnnii_pb.StatsReportRequest, metadata: grpc.Metadata, callback: (error: grpc.ServiceError | null, response: omnnii_pb.StatsReportResponse) => void): grpc.ClientUnaryCall;
     reportStats(request: omnnii_pb.StatsReportRequest, metadata: grpc.Metadata, options: Partial<grpc.CallOptions>, callback: (error: grpc.ServiceError | null, response: omnnii_pb.StatsReportResponse) => void): grpc.ClientUnaryCall;
+    reportConnectivity(request: omnnii_pb.ConnectivityReportRequest, callback: (error: grpc.ServiceError | null, response: omnnii_pb.ConnectivityReportResponse) => void): grpc.ClientUnaryCall;
+    reportConnectivity(request: omnnii_pb.ConnectivityReportRequest, metadata: grpc.Metadata, callback: (error: grpc.ServiceError | null, response: omnnii_pb.ConnectivityReportResponse) => void): grpc.ClientUnaryCall;
+    reportConnectivity(request: omnnii_pb.ConnectivityReportRequest, metadata: grpc.Metadata, options: Partial<grpc.CallOptions>, callback: (error: grpc.ServiceError | null, response: omnnii_pb.ConnectivityReportResponse) => void): grpc.ClientUnaryCall;
     triggerUpdate(request: omnnii_pb.TriggerUpdateRequest, callback: (error: grpc.ServiceError | null, response: omnnii_pb.TriggerUpdateResponse) => void): grpc.ClientUnaryCall;
     triggerUpdate(request: omnnii_pb.TriggerUpdateRequest, metadata: grpc.Metadata, callback: (error: grpc.ServiceError | null, response: omnnii_pb.TriggerUpdateResponse) => void): grpc.ClientUnaryCall;
     triggerUpdate(request: omnnii_pb.TriggerUpdateRequest, metadata: grpc.Metadata, options: Partial<grpc.CallOptions>, callback: (error: grpc.ServiceError | null, response: omnnii_pb.TriggerUpdateResponse) => void): grpc.ClientUnaryCall;
@@ -120,6 +134,9 @@ export class OmniiServiceClient extends grpc.Client implements IOmniiServiceClie
     public reportStats(request: omnnii_pb.StatsReportRequest, callback: (error: grpc.ServiceError | null, response: omnnii_pb.StatsReportResponse) => void): grpc.ClientUnaryCall;
     public reportStats(request: omnnii_pb.StatsReportRequest, metadata: grpc.Metadata, callback: (error: grpc.ServiceError | null, response: omnnii_pb.StatsReportResponse) => void): grpc.ClientUnaryCall;
     public reportStats(request: omnnii_pb.StatsReportRequest, metadata: grpc.Metadata, options: Partial<grpc.CallOptions>, callback: (error: grpc.ServiceError | null, response: omnnii_pb.StatsReportResponse) => void): grpc.ClientUnaryCall;
+    public reportConnectivity(request: omnnii_pb.ConnectivityReportRequest, callback: (error: grpc.ServiceError | null, response: omnnii_pb.ConnectivityReportResponse) => void): grpc.ClientUnaryCall;
+    public reportConnectivity(request: omnnii_pb.ConnectivityReportRequest, metadata: grpc.Metadata, callback: (error: grpc.ServiceError | null, response: omnnii_pb.ConnectivityReportResponse) => void): grpc.ClientUnaryCall;
+    public reportConnectivity(request: omnnii_pb.ConnectivityReportRequest, metadata: grpc.Metadata, options: Partial<grpc.CallOptions>, callback: (error: grpc.ServiceError | null, response: omnnii_pb.ConnectivityReportResponse) => void): grpc.ClientUnaryCall;
     public triggerUpdate(request: omnnii_pb.TriggerUpdateRequest, callback: (error: grpc.ServiceError | null, response: omnnii_pb.TriggerUpdateResponse) => void): grpc.ClientUnaryCall;
     public triggerUpdate(request: omnnii_pb.TriggerUpdateRequest, metadata: grpc.Metadata, callback: (error: grpc.ServiceError | null, response: omnnii_pb.TriggerUpdateResponse) => void): grpc.ClientUnaryCall;
     public triggerUpdate(request: omnnii_pb.TriggerUpdateRequest, metadata: grpc.Metadata, options: Partial<grpc.CallOptions>, callback: (error: grpc.ServiceError | null, response: omnnii_pb.TriggerUpdateResponse) => void): grpc.ClientUnaryCall;

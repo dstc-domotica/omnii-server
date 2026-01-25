@@ -58,3 +58,19 @@ export interface HeartbeatModel {
 	status: string;
 	latencyMs: number | null;
 }
+
+export interface ConnectivityCheckModel {
+	id: string;
+	instanceId: string;
+	timestamp: number;
+	target: string;
+	status: string;
+	latencyMs: number | null;
+	error: string | null;
+	publicIp: string | null;
+	ipCountry: string | null;
+	ipRegion: string | null;
+	ipCity: string | null;
+	ipIsp: string | null;
+	ipAsn: string | null;
+}

@@ -6,6 +6,7 @@ import {
 	DeleteInstanceResult,
 	ErrorResponse,
 	HeartbeatRecord,
+	ConnectivityRecord,
 	InstancePublic,
 	InstanceSystemInfoRecord,
 	InstanceUpdateRecord,
@@ -15,6 +16,7 @@ import {
 import {
 	deleteInstance,
 	getAvailableUpdates,
+	getInstanceConnectivityChecks,
 	getInstanceHeartbeats,
 	getSystemInfo,
 	listInstances,
@@ -312,6 +314,57 @@ app.openapi(
 				minutes ?? 60,
 			);
 			return successResponse(c, instanceHeartbeats);
+		} catch (error) {
+			return handleRouteError(c, error);
+		}
+	},
+);
+
+app.openapi(
+	createRoute({
+		method: "get",
+		path: "/instances/{id}/connectivity",
+		tags: ["Instances"],
+		request: {
+			params: z.object({
+				id: z.string(),
+			}),
+			query: z.object({
+				minutes: z.coerce.number().int().min(1).optional(),
+			}),
+		},
+		responses: {
+			200: {
+				content: {
+					"application/json": {
+						schema: z.array(ConnectivityRecord),
+					},
+				},
+				description: "Instance connectivity checks",
+			},
+			404: {
+				content: {
+					"application/json": { schema: ErrorResponse },
+				},
+				description: "Instance not found",
+			},
+			500: {
+				content: {
+					"application/json": { schema: ErrorResponse },
+				},
+				description: "Failed to fetch connectivity checks",
+			},
+		},
+	}),
+	async (c) => {
+		try {
+			const { id: instanceId } = c.req.valid("param");
+			const { minutes } = c.req.valid("query");
+			const checks = await getInstanceConnectivityChecks(
+				instanceId,
+				minutes ?? 60,
+			);
+			return successResponse(c, checks);
 		} catch (error) {
 			return handleRouteError(c, error);
 		}

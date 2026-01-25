@@ -1,7 +1,8 @@
 import { randomBytes } from "node:crypto";
-import { and, desc, eq, gte, isNull, or } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, isNull, or } from "drizzle-orm";
 import {
 	db,
+	connectivityChecks,
 	heartbeats,
 	instanceRefreshTokens,
 	instanceStats,
@@ -14,10 +15,89 @@ import { ApiError } from "../http/errors";
 import { logError } from "../lib/logger";
 import type {
 	HeartbeatModel,
+	ConnectivityCheckModel,
 	InstanceModel,
 	InstanceSystemInfoModel,
 	InstanceUpdateModel,
 } from "../types/models";
+
+type IpEnrichment = {
+	ipCountry: string | null;
+	ipRegion: string | null;
+	ipCity: string | null;
+	ipIsp: string | null;
+	ipAsn: string | null;
+};
+
+async function getCachedIpEnrichment(
+	publicIp: string,
+): Promise<IpEnrichment | null> {
+	const existing = await db
+		.select()
+		.from(connectivityChecks)
+		.where(
+			and(
+				eq(connectivityChecks.publicIp, publicIp),
+				isNotNull(connectivityChecks.ipCountry),
+			),
+		)
+		.orderBy(desc(connectivityChecks.timestamp))
+		.limit(1);
+	const record = existing[0];
+	if (!record) {
+		return null;
+	}
+	return {
+		ipCountry: record.ipCountry ?? null,
+		ipRegion: record.ipRegion ?? null,
+		ipCity: record.ipCity ?? null,
+		ipIsp: record.ipIsp ?? null,
+		ipAsn: record.ipAsn ?? null,
+	};
+}
+
+async function fetchIpEnrichment(publicIp: string): Promise<IpEnrichment | null> {
+	try {
+		const response = await fetch(`https://ipwho.is/${publicIp}`);
+		if (!response.ok) {
+			logError("IP enrichment request failed", {
+				publicIp,
+				status: response.status,
+			});
+			return null;
+		}
+		const payload = (await response.json()) as {
+			success?: boolean;
+			country?: string;
+			region?: string;
+			city?: string;
+			connection?: { isp?: string; asn?: string };
+		};
+		if (!payload.success) {
+			return null;
+		}
+		return {
+			ipCountry: payload.country ?? null,
+			ipRegion: payload.region ?? null,
+			ipCity: payload.city ?? null,
+			ipIsp: payload.connection?.isp ?? null,
+			ipAsn: payload.connection?.asn ?? null,
+		};
+	} catch (error) {
+		logError("IP enrichment request failed", { error, publicIp });
+		return null;
+	}
+}
+
+async function resolveIpEnrichment(
+	publicIp: string,
+): Promise<IpEnrichment | null> {
+	const cached = await getCachedIpEnrichment(publicIp);
+	if (cached) {
+		return cached;
+	}
+	return fetchIpEnrichment(publicIp);
+}
 
 export function toInstancePublic(instance: InstanceModel) {
 	return {
@@ -105,6 +185,24 @@ export async function getInstanceHeartbeats(
 		.orderBy(desc(heartbeats.timestamp));
 }
 
+export async function getInstanceConnectivityChecks(
+	instanceId: string,
+	minutes: number,
+): Promise<ConnectivityCheckModel[]> {
+	await requireInstance(instanceId);
+	const cutoffTime = Date.now() - minutes * 60 * 1000;
+	return db
+		.select()
+		.from(connectivityChecks)
+		.where(
+			and(
+				eq(connectivityChecks.instanceId, instanceId),
+				gte(connectivityChecks.timestamp, cutoffTime),
+			),
+		)
+		.orderBy(desc(connectivityChecks.timestamp));
+}
+
 export async function triggerInstanceUpdate(
 	instanceId: string,
 	updateType: string,
@@ -147,6 +245,9 @@ export async function deleteInstance(instanceId: string): Promise<void> {
 	await db
 		.delete(instanceRefreshTokens)
 		.where(eq(instanceRefreshTokens.instanceId, instanceId));
+	await db
+		.delete(connectivityChecks)
+		.where(eq(connectivityChecks.instanceId, instanceId));
 	await db.delete(heartbeats).where(eq(heartbeats.instanceId, instanceId));
 	await db.delete(instances).where(eq(instances.id, instanceId));
 }
@@ -338,5 +439,51 @@ export async function recordStatsReport(
 		});
 	} catch (error) {
 		logError("gRPC failed to record stats report", { error, instanceId });
+	}
+}
+
+export async function recordConnectivityChecks(
+	instanceId: string,
+	report: {
+		publicIp: string | null;
+		checks: Array<{
+			target: string;
+			status: string;
+			latencyMs: number | null;
+			error: string | null;
+		}>;
+	},
+): Promise<void> {
+	try {
+		const enrichment = report.publicIp
+			? await resolveIpEnrichment(report.publicIp)
+			: null;
+
+		if (report.checks.length === 0) {
+			return;
+		}
+
+		await db.insert(connectivityChecks).values(
+			report.checks.map((check) => ({
+				id: randomBytes(16).toString("hex"),
+				instanceId,
+				timestamp: Date.now(),
+				target: check.target,
+				status: check.status,
+				latencyMs: check.latencyMs ?? null,
+				error: check.error ?? null,
+				publicIp: report.publicIp,
+				ipCountry: enrichment?.ipCountry ?? null,
+				ipRegion: enrichment?.ipRegion ?? null,
+				ipCity: enrichment?.ipCity ?? null,
+				ipIsp: enrichment?.ipIsp ?? null,
+				ipAsn: enrichment?.ipAsn ?? null,
+			})),
+		);
+	} catch (error) {
+		logError("gRPC failed to record connectivity checks", {
+			error,
+			instanceId,
+		});
 	}
 }

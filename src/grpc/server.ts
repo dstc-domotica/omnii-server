@@ -14,6 +14,7 @@ import {
 import { enrollInstance } from "../services/enrollment";
 import {
 	recordHeartbeat,
+	recordConnectivityChecks,
 	recordStatsReport,
 	updateInstanceStatus,
 	updateReportedUpdates,
@@ -28,6 +29,8 @@ import {
 	EnrollResponse,
 	type HeartbeatRequest,
 	HeartbeatResponse,
+	type ConnectivityReportRequest,
+	ConnectivityReportResponse,
 	type RefreshTokenRequest,
 	RefreshTokenResponse,
 	type StatsReportRequest,
@@ -423,6 +426,46 @@ const omniiServiceImpl: IOmniiServiceServer = {
 			logInfo("gRPC recorded stats report", { instanceId });
 			response.setAccepted(true);
 			response.setMessage("Stats report accepted");
+			callback(null, response);
+		},
+	),
+
+	/**
+	 * ReportConnectivity - Report connectivity probes for the instance
+	 */
+	reportConnectivity: withAuth(
+		async (
+			auth,
+			call: grpc.ServerUnaryCall<
+				ConnectivityReportRequest,
+				ConnectivityReportResponse
+			>,
+			callback: grpc.sendUnaryData<ConnectivityReportResponse>,
+		) => {
+			const request = call.request;
+
+			const instanceId = auth.instanceId;
+			const response = new ConnectivityReportResponse();
+
+			const checks = request.getChecksList();
+			activeInstances.set(instanceId, Date.now());
+
+			await recordConnectivityChecks(instanceId, {
+				publicIp: request.getPublicIp() || null,
+				checks: checks.map((check) => {
+					const latencyValue = check.getLatencyMs();
+					const errorValue = check.getError();
+					return {
+						target: check.getTarget(),
+						status: check.getStatus(),
+						latencyMs: latencyValue > 0 ? latencyValue : null,
+						error: errorValue ? errorValue : null,
+					};
+				}),
+			});
+
+			response.setAccepted(true);
+			response.setMessage("Connectivity report accepted");
 			callback(null, response);
 		},
 	),
