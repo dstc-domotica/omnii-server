@@ -21,9 +21,15 @@ services:
       GRPC_PORT: 50051
       SERVER_HOST: localhost
       DATABASE_URL: postgres://omnii:omnii@postgres:5432/omnii
+      GRPC_TLS_CERT_PATH: /certs/server.crt
+      GRPC_TLS_KEY_PATH: /certs/server.key
+      GRPC_TLS_CERT_DAYS: 365
     ports:
       - "3001:3001"
       - "50051:50051"
+    volumes:
+      - grpc-certs:/certs
     restart: unless-stopped
 volumes:
   postgres-data:
+  grpc-certs:

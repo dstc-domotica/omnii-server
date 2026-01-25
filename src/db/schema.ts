@@ -1,4 +1,10 @@
-import { bigint, integer, pgTable, text } from "drizzle-orm/pg-core";
+import {
+	bigint,
+	doublePrecision,
+	integer,
+	pgTable,
+	text,
+} from "drizzle-orm/pg-core";
 
 export const instances = pgTable("instances", {
 	id: text("id").primaryKey(),
@@ -80,4 +86,38 @@ export const instanceUpdates = pgTable("instance_updates", {
 	createdAt: bigint("created_at", { mode: "number" })
 		.notNull()
 		.$defaultFn(() => Date.now()),
+});
+
+// Instance core stats reports (time series)
+export const instanceStats = pgTable("instance_stats", {
+	id: text("id").primaryKey(),
+	instanceId: text("instance_id")
+		.notNull()
+		.references(() => instances.id),
+	generatedAt: bigint("generated_at", { mode: "number" }),
+	cpuPercent: doublePrecision("cpu_percent"),
+	memoryUsage: bigint("memory_usage", { mode: "number" }),
+	memoryLimit: bigint("memory_limit", { mode: "number" }),
+	memoryPercent: doublePrecision("memory_percent"),
+	networkTx: bigint("network_tx", { mode: "number" }),
+	networkRx: bigint("network_rx", { mode: "number" }),
+	blkRead: bigint("blk_read", { mode: "number" }),
+	blkWrite: bigint("blk_write", { mode: "number" }),
+	createdAt: bigint("created_at", { mode: "number" })
+		.notNull()
+		.$defaultFn(() => Date.now()),
+});
+
+export const instanceRefreshTokens = pgTable("instance_refresh_tokens", {
+	id: text("id").primaryKey(),
+	instanceId: text("instance_id")
+		.notNull()
+		.references(() => instances.id),
+	tokenHash: text("token_hash").notNull().unique(),
+	createdAt: bigint("created_at", { mode: "number" })
+		.notNull()
+		.$defaultFn(() => Date.now()),
+	lastUsedAt: bigint("last_used_at", { mode: "number" }),
+	expiresAt: bigint("expires_at", { mode: "number" }),
+	revokedAt: bigint("revoked_at", { mode: "number" }),
 });

@@ -1,5 +1,9 @@
 FROM oven/bun:1.3.5
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY . .

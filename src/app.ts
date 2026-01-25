@@ -11,6 +11,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { buildApiBaseUrl, getHostForGrpc, serverConfig } from "./config/server";
 import { isApiError } from "./http/errors";
 import { errorResponse, successResponse } from "./http/responses";
+import { logError } from "./lib/logger";
 import { ConfigResponse, ErrorResponse } from "./openapi/schemas";
 import enrollmentRoutes from "./routes/enrollment";
 import instanceRoutes from "./routes/instances";
@@ -52,7 +53,7 @@ app.onError((err, c) => {
 	}
 
 	const requestId = c.get("requestId");
-	console.error(`[HTTP] Unhandled error (${requestId ?? "unknown"}):`, err);
+	logError("HTTP unhandled error", { error: err, requestId });
 	return errorResponse(c, 500, "Internal Server Error");
 });
 
@@ -64,7 +65,7 @@ app.doc(`${apiBasePath}/openapi.json`, {
 	},
 	servers: [
 		{
-			url: `${buildApiBaseUrl()}${apiBasePath}`,
+			url: buildApiBaseUrl(),
 		},
 	],
 });

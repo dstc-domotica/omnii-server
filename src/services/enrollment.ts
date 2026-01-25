@@ -1,6 +1,12 @@
 import { randomBytes } from "node:crypto";
 import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { db, enrollmentCodes, instances } from "../db";
+import {
+	generateAccessToken,
+	generateRefreshToken,
+	storeRefreshToken,
+	trackAccessTokenForRefresh,
+} from "./auth";
 
 export interface EnrollmentCodeResult {
 	code: string;
@@ -10,16 +16,18 @@ export interface EnrollmentCodeResult {
 
 export interface EnrollmentResult {
 	instanceId: string;
-	token: string;
+	accessToken: string;
+	refreshToken: string;
+	accessTokenExpiresAt: number;
 }
 
 /**
- * Generate a numeric enrollment code (6-8 digits)
+ * Generate a numeric enrollment code (8 digits)
  */
 export function generateEnrollmentCode(): string {
-	// Generate 6-digit numeric code
-	const min = 100000;
-	const max = 999999;
+	// Generate 8-digit numeric code
+	const min = 10000000;
+	const max = 99999999;
 	return Math.floor(Math.random() * (max - min + 1) + min).toString();
 }
 
@@ -147,9 +155,6 @@ export async function enrollInstance(code: string): Promise<EnrollmentResult> {
 	// Auto-generate instance name based on instance ID
 	const name = `Home Assistant - ${instanceId}`;
 
-	// Generate a secure token for gRPC authentication
-	const token = randomBytes(32).toString("hex");
-
 	// Insert instance into database
 	await db.insert(instances).values({
 		id: instanceId,
@@ -159,7 +164,6 @@ export async function enrollInstance(code: string): Promise<EnrollmentResult> {
 		status: "offline",
 		createdAt: enrolledAt,
 		updatedAt: enrolledAt,
-		token,
 	});
 
 	// Mark code as used
@@ -169,18 +173,19 @@ export async function enrollInstance(code: string): Promise<EnrollmentResult> {
 	if (!instanceId || !instanceId.match(/^ha-[0-9a-f]{4}$/i)) {
 		throw new Error(`Invalid instance ID format: ${instanceId}`);
 	}
-	if (!token || token.length < 32) {
-		throw new Error(
-			"Token must be at least 32 characters (cryptographically secure)",
-		);
-	}
+	const accessTokenResult = await generateAccessToken(instanceId);
+	const refreshToken = generateRefreshToken();
+	const refreshRecord = await storeRefreshToken(instanceId, refreshToken);
+	trackAccessTokenForRefresh(refreshRecord.id, accessTokenResult);
 
 	// Construct enrollment result
 	// Note: grpcServerUrl is not included since the addon already knows it
 	// (it connected to the gRPC server to call Enroll)
 	const enrollmentResult: EnrollmentResult = {
 		instanceId,
-		token,
+		accessToken: accessTokenResult.token,
+		refreshToken,
+		accessTokenExpiresAt: accessTokenResult.expiresAt,
 	};
 
 	return enrollmentResult;

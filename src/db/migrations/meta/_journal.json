@@ -8,6 +8,20 @@
       "when": 1768492104170,
       "tag": "0000_jazzy_frightful_four",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1768523927228,
+      "tag": "0001_spooky_victor_mancha",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1769201286737,
+      "tag": "0002_friendly_screwball",
+      "breakpoints": true
     }
   ]
 }
