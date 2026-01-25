@@ -194,6 +194,11 @@ export class HeartbeatResponse extends jspb.Message {
     getLatencyMs(): number;
     setLatencyMs(value: number): HeartbeatResponse;
 
+    hasPendingUpdate(): boolean;
+    clearPendingUpdate(): void;
+    getPendingUpdate(): PendingUpdate | undefined;
+    setPendingUpdate(value?: PendingUpdate): HeartbeatResponse;
+
     serializeBinary(): Uint8Array;
     toObject(includeInstance?: boolean): HeartbeatResponse.AsObject;
     static toObject(includeInstance: boolean, msg: HeartbeatResponse): HeartbeatResponse.AsObject;
@@ -209,6 +214,33 @@ export namespace HeartbeatResponse {
         alive: boolean,
         time: number,
         latencyMs: number,
+        pendingUpdate?: PendingUpdate.AsObject,
+    }
+}
+
+export class PendingUpdate extends jspb.Message { 
+    getHasUpdate(): boolean;
+    setHasUpdate(value: boolean): PendingUpdate;
+    getUpdateType(): string;
+    setUpdateType(value: string): PendingUpdate;
+    getAddonSlug(): string;
+    setAddonSlug(value: string): PendingUpdate;
+
+    serializeBinary(): Uint8Array;
+    toObject(includeInstance?: boolean): PendingUpdate.AsObject;
+    static toObject(includeInstance: boolean, msg: PendingUpdate): PendingUpdate.AsObject;
+    static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+    static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+    static serializeBinaryToWriter(message: PendingUpdate, writer: jspb.BinaryWriter): void;
+    static deserializeBinary(bytes: Uint8Array): PendingUpdate;
+    static deserializeBinaryFromReader(message: PendingUpdate, reader: jspb.BinaryReader): PendingUpdate;
+}
+
+export namespace PendingUpdate {
+    export type AsObject = {
+        hasUpdate: boolean,
+        updateType: string,
+        addonSlug: string,
     }
 }
 
@@ -516,6 +548,12 @@ export class TriggerUpdateRequest extends jspb.Message {
     setUpdateType(value: string): TriggerUpdateRequest;
     getAddonSlug(): string;
     setAddonSlug(value: string): TriggerUpdateRequest;
+    getSuccess(): boolean;
+    setSuccess(value: boolean): TriggerUpdateRequest;
+    getError(): string;
+    setError(value: string): TriggerUpdateRequest;
+    getMessage(): string;
+    setMessage(value: string): TriggerUpdateRequest;
 
     serializeBinary(): Uint8Array;
     toObject(includeInstance?: boolean): TriggerUpdateRequest.AsObject;
@@ -531,14 +569,15 @@ export namespace TriggerUpdateRequest {
     export type AsObject = {
         updateType: string,
         addonSlug: string,
+        success: boolean,
+        error: string,
+        message: string,
     }
 }
 
 export class TriggerUpdateResponse extends jspb.Message { 
-    getSuccess(): boolean;
-    setSuccess(value: boolean): TriggerUpdateResponse;
-    getError(): string;
-    setError(value: string): TriggerUpdateResponse;
+    getAccepted(): boolean;
+    setAccepted(value: boolean): TriggerUpdateResponse;
     getMessage(): string;
     setMessage(value: string): TriggerUpdateResponse;
 
@@ -554,8 +593,7 @@ export class TriggerUpdateResponse extends jspb.Message {
 
 export namespace TriggerUpdateResponse {
     export type AsObject = {
-        success: boolean,
-        error: string,
+        accepted: boolean,
         message: string,
     }
 }

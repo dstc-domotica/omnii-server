@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, desc, eq, gte, isNotNull, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNotNull, isNull, or } from "drizzle-orm";
 import {
 	db,
 	connectivityChecks,
@@ -20,6 +20,16 @@ import type {
 	InstanceSystemInfoModel,
 	InstanceUpdateModel,
 } from "../types/models";
+
+export interface PaginationResult<T> {
+	data: T[];
+	pagination: {
+		page: number;
+		limit: number;
+		total: number;
+		totalPages: number;
+	};
+}
 
 type IpEnrichment = {
 	ipCountry: string | null;
@@ -113,6 +123,36 @@ export function toInstancePublic(instance: InstanceModel) {
 
 export async function listInstances(): Promise<InstanceModel[]> {
 	return db.select().from(instances).orderBy(desc(instances.createdAt));
+}
+
+export async function listInstancesPaginated(
+	page: number,
+	limit: number,
+): Promise<PaginationResult<InstanceModel>> {
+	const offset = (page - 1) * limit;
+
+	const [countResult, data] = await Promise.all([
+		db.select({ count: count() }).from(instances),
+		db
+			.select()
+			.from(instances)
+			.orderBy(desc(instances.createdAt))
+			.limit(limit)
+			.offset(offset),
+	]);
+
+	const total = countResult[0]?.count ?? 0;
+	const totalPages = Math.ceil(total / limit);
+
+	return {
+		data,
+		pagination: {
+			page,
+			limit,
+			total,
+			totalPages,
+		},
+	};
 }
 
 export async function getInstanceById(

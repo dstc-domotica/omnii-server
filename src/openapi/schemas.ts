@@ -4,6 +4,26 @@ export const ErrorResponse = z.object({
 	message: z.string(),
 });
 
+// Pagination schemas
+export const PaginationParams = z.object({
+	page: z.coerce.number().int().min(1).default(1),
+	limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export const PaginationMeta = z.object({
+	page: z.number(),
+	limit: z.number(),
+	total: z.number(),
+	totalPages: z.number(),
+});
+
+export function createPaginatedResponse<T extends z.ZodTypeAny>(itemSchema: T) {
+	return z.object({
+		data: z.array(itemSchema),
+		pagination: PaginationMeta,
+	});
+}
+
 export const HealthResponse = z.object({
 	status: z.string(),
 	service: z.string(),

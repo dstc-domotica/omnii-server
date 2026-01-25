@@ -9,12 +9,19 @@ import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { buildApiBaseUrl, getHostForGrpc, serverConfig } from "./config/server";
+import { db } from "./db";
 import { isApiError } from "./http/errors";
 import { errorResponse, successResponse } from "./http/responses";
 import { logError } from "./lib/logger";
-import { ConfigResponse, ErrorResponse } from "./openapi/schemas";
+import {
+	ConfigResponse,
+	ErrorResponse,
+	HealthResponse,
+	SimpleHealthResponse,
+} from "./openapi/schemas";
 import enrollmentRoutes from "./routes/enrollment";
 import instanceRoutes from "./routes/instances";
+import { sql } from "drizzle-orm";
 
 type AppEnv = {
 	Variables: {
@@ -75,6 +82,73 @@ app.get(
 	Scalar({
 		url: `${apiBasePath}/openapi.json`,
 	}),
+);
+
+// Simple liveness probe - no dependencies checked
+const livenessRoute = createRoute({
+	method: "get",
+	path: "/health",
+	tags: ["Health"],
+	responses: {
+		200: {
+			content: {
+				"application/json": { schema: SimpleHealthResponse },
+			},
+			description: "Service is alive",
+		},
+	},
+});
+
+app.openapi(
+	livenessRoute,
+	(c): RouteConfigToTypedResponse<typeof livenessRoute> => {
+		return successResponse(c, {
+			status: "ok",
+		}) as unknown as RouteConfigToTypedResponse<typeof livenessRoute>;
+	},
+);
+
+// Readiness probe - checks database connectivity
+const readinessRoute = createRoute({
+	method: "get",
+	path: `${apiBasePath}/health`,
+	tags: ["Health"],
+	responses: {
+		200: {
+			content: {
+				"application/json": { schema: HealthResponse },
+			},
+			description: "Service is ready",
+		},
+		503: {
+			content: {
+				"application/json": { schema: ErrorResponse },
+			},
+			description: "Service is not ready",
+		},
+	},
+});
+
+app.openapi(
+	readinessRoute,
+	async (c): Promise<RouteConfigToTypedResponse<typeof readinessRoute>> => {
+		try {
+			// Check database connectivity
+			await db.execute(sql`SELECT 1`);
+
+			return successResponse(c, {
+				status: "ok",
+				service: "omnii-server",
+				version: "1.0.0",
+			}) as unknown as RouteConfigToTypedResponse<typeof readinessRoute>;
+		} catch (_error) {
+			return errorResponse(
+				c,
+				503,
+				"Database connection failed",
+			) as unknown as RouteConfigToTypedResponse<typeof readinessRoute>;
+		}
+	},
 );
 
 const configRoute = createRoute({

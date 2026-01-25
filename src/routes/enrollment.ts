@@ -6,16 +6,19 @@ import {
 } from "@hono/zod-openapi";
 import { errorResponse, successResponse } from "../http/responses";
 import {
+	createPaginatedResponse,
 	DeactivateEnrollmentResult,
 	EnrollmentCodeCreateResponse,
 	EnrollmentCodeRecord,
 	ErrorResponse,
+	PaginationParams,
 } from "../openapi/schemas";
 import {
 	createEnrollmentCode,
 	deactivateEnrollmentCode,
 	getActiveEnrollmentCodes,
 	getAllEnrollmentCodes,
+	getAllEnrollmentCodesPaginated,
 } from "../services/enrollment";
 
 const app = new OpenAPIHono();
@@ -79,18 +82,23 @@ const listEnrollmentCodesRoute = createRoute({
 	path: "/enrollment-codes",
 	tags: ["Enrollment"],
 	request: {
-		query: z.object({
-			all: z.enum(["true", "false"]).optional(),
-		}),
+		query: z
+			.object({
+				all: z.enum(["true", "false"]).optional(),
+			})
+			.merge(PaginationParams.partial()),
 	},
 	responses: {
 		200: {
 			content: {
 				"application/json": {
-					schema: z.array(EnrollmentCodeRecord),
+					schema: z.union([
+						z.array(EnrollmentCodeRecord),
+						createPaginatedResponse(EnrollmentCodeRecord),
+					]),
 				},
 			},
-			description: "Enrollment codes",
+			description: "Enrollment codes (paginated when all=true with page/limit)",
 		},
 		500: {
 			content: {
@@ -107,8 +115,24 @@ app.openapi(
 		c,
 	): Promise<RouteConfigToTypedResponse<typeof listEnrollmentCodesRoute>> => {
 		try {
-			const { all } = c.req.valid("query");
+			const { all, page, limit } = c.req.valid("query");
 			const includeAll = all === "true";
+
+			// If requesting all codes with pagination params, use paginated response
+			if (includeAll && (page !== undefined || limit !== undefined)) {
+				const result = await getAllEnrollmentCodesPaginated(
+					page ?? 1,
+					limit ?? 20,
+				);
+				return successResponse(c, {
+					data: result.data,
+					pagination: result.pagination,
+				}) as unknown as RouteConfigToTypedResponse<
+					typeof listEnrollmentCodesRoute
+				>;
+			}
+
+			// Otherwise return simple array (backwards compatible)
 			const codes = includeAll
 				? await getAllEnrollmentCodes()
 				: await getActiveEnrollmentCodes();

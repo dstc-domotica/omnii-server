@@ -3,6 +3,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { isApiError } from "../http/errors";
 import { errorResponse, successResponse } from "../http/responses";
 import {
+	createPaginatedResponse,
 	DeleteInstanceResult,
 	ErrorResponse,
 	HeartbeatRecord,
@@ -10,6 +11,7 @@ import {
 	InstancePublic,
 	InstanceSystemInfoRecord,
 	InstanceUpdateRecord,
+	PaginationParams,
 	TriggerUpdateBody,
 	TriggerUpdateResult,
 } from "../openapi/schemas";
@@ -19,7 +21,7 @@ import {
 	getInstanceConnectivityChecks,
 	getInstanceHeartbeats,
 	getSystemInfo,
-	listInstances,
+	listInstancesPaginated,
 	requireInstance,
 	toInstancePublic,
 	triggerInstanceUpdate,
@@ -46,14 +48,17 @@ app.openapi(
 		method: "get",
 		path: "/instances",
 		tags: ["Instances"],
+		request: {
+			query: PaginationParams.partial(),
+		},
 		responses: {
 			200: {
 				content: {
 					"application/json": {
-						schema: z.array(InstancePublic),
+						schema: createPaginatedResponse(InstancePublic),
 					},
 				},
-				description: "Instances list",
+				description: "Paginated instances list",
 			},
 			500: {
 				content: {
@@ -65,9 +70,12 @@ app.openapi(
 	}),
 	async (c) => {
 		try {
-			const allInstances = await listInstances();
-			const payload = allInstances.map(toInstancePublic);
-			return successResponse(c, payload);
+			const { page = 1, limit = 20 } = c.req.valid("query");
+			const result = await listInstancesPaginated(page, limit);
+			return successResponse(c, {
+				data: result.data.map(toInstancePublic),
+				pagination: result.pagination,
+			});
 		} catch (error) {
 			return handleRouteError(c, error);
 		}

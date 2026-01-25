@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, desc, eq, gt, isNull } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNull } from "drizzle-orm";
 import { db, enrollmentCodes, instances } from "../db";
 import {
 	generateAccessToken,
@@ -7,11 +7,22 @@ import {
 	storeRefreshToken,
 	trackAccessTokenForRefresh,
 } from "./auth";
+import type { PaginationResult } from "./instances";
 
 export interface EnrollmentCodeResult {
 	code: string;
 	expiresAt: number;
 	id: string;
+}
+
+export interface EnrollmentCodeRecord {
+	id: string;
+	code: string;
+	instanceId: string | null;
+	createdAt: number;
+	expiresAt: number;
+	usedAt: number | null;
+	deactivatedAt: number | null;
 }
 
 export interface EnrollmentResult {
@@ -216,4 +227,37 @@ export async function getAllEnrollmentCodes() {
 		.select()
 		.from(enrollmentCodes)
 		.orderBy(desc(enrollmentCodes.createdAt));
+}
+
+/**
+ * Get all enrollment codes with pagination
+ */
+export async function getAllEnrollmentCodesPaginated(
+	page: number,
+	limit: number,
+): Promise<PaginationResult<EnrollmentCodeRecord>> {
+	const offset = (page - 1) * limit;
+
+	const [countResult, data] = await Promise.all([
+		db.select({ count: count() }).from(enrollmentCodes),
+		db
+			.select()
+			.from(enrollmentCodes)
+			.orderBy(desc(enrollmentCodes.createdAt))
+			.limit(limit)
+			.offset(offset),
+	]);
+
+	const total = countResult[0]?.count ?? 0;
+	const totalPages = Math.ceil(total / limit);
+
+	return {
+		data,
+		pagination: {
+			page,
+			limit,
+			total,
+			totalPages,
+		},
+	};
 }

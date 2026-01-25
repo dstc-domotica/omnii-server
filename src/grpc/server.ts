@@ -29,6 +29,7 @@ import {
 	EnrollResponse,
 	type HeartbeatRequest,
 	HeartbeatResponse,
+	PendingUpdate,
 	type ConnectivityReportRequest,
 	ConnectivityReportResponse,
 	type RefreshTokenRequest,
@@ -328,6 +329,21 @@ const omniiServiceImpl: IOmniiServiceServer = {
 			response.setAlive(true);
 			response.setTime(Date.now());
 			response.setLatencyMs(latencyMs ?? 0);
+
+			// Check for pending update triggers
+			const pendingTrigger = getPendingUpdateTrigger(instanceId);
+			if (pendingTrigger) {
+				const pendingUpdate = new PendingUpdate();
+				pendingUpdate.setHasUpdate(true);
+				pendingUpdate.setUpdateType(pendingTrigger.updateType);
+				pendingUpdate.setAddonSlug(pendingTrigger.addonSlug);
+				response.setPendingUpdate(pendingUpdate);
+				logInfo("gRPC heartbeat includes pending update", {
+					instanceId,
+					updateType: pendingTrigger.updateType,
+				});
+			}
+
 			callback(null, response);
 		},
 	),
@@ -471,8 +487,8 @@ const omniiServiceImpl: IOmniiServiceServer = {
 	),
 
 	/**
-	 * TriggerUpdate - Server requests addon to trigger an update
-	 * This is called by the addon to check for pending update requests
+	 * TriggerUpdate - Addon reports the result of executing an update
+	 * This is called by the addon after processing a pending update request
 	 */
 	triggerUpdate: withAuth(
 		async (
@@ -483,24 +499,33 @@ const omniiServiceImpl: IOmniiServiceServer = {
 			const request = call.request;
 			const updateType = request.getUpdateType();
 			const addonSlug = request.getAddonSlug();
+			const success = request.getSuccess();
+			const error = request.getError();
+			const message = request.getMessage();
 
 			const instanceId = auth.instanceId;
 
-			logInfo("gRPC trigger update request", {
+			logInfo("gRPC trigger update result received", {
 				instanceId,
 				updateType,
 				addonSlug,
+				success,
+				error: error || undefined,
 			});
 
 			const response = new TriggerUpdateResponse();
 
 			activeInstances.set(instanceId, Date.now());
 
-			// This RPC is called from the HTTP API through requestUpdateFromAddon
-			// The actual implementation will be handled by the pending triggers mechanism
-			response.setSuccess(true);
-			response.setError("");
-			response.setMessage("Update trigger processed");
+			// Complete the pending trigger - this resolves the promise in requestUpdateFromAddon
+			completePendingUpdateTrigger(instanceId, {
+				success,
+				error: error || undefined,
+				message: message || undefined,
+			});
+
+			response.setAccepted(true);
+			response.setMessage("Update result received");
 			callback(null, response);
 		},
 	),
@@ -530,11 +555,9 @@ export async function requestUpdateFromAddon(
 			updateType,
 			addonSlug,
 			resolve: (response) => {
-				clearTimeout(timeout);
-				pendingUpdateTriggers.delete(instanceId);
+				// Response is resolved via completePendingUpdateTrigger
 				resolve({
-					success: response.getSuccess(),
-					error: response.getError() || undefined,
+					success: response.getAccepted(),
 					message: response.getMessage() || undefined,
 				});
 			},
@@ -560,14 +583,20 @@ export function getPendingUpdateTrigger(
 }
 
 /**
- * Complete a pending update trigger
+ * Complete a pending update trigger with result from addon
  */
 export function completePendingUpdateTrigger(
 	instanceId: string,
-	response: TriggerUpdateResponse,
+	result: { success: boolean; error?: string; message?: string },
 ): void {
 	const pending = pendingUpdateTriggers.get(instanceId);
 	if (pending) {
+		clearTimeout(pending.timeout);
+		pendingUpdateTriggers.delete(instanceId);
+		// Resolve with the result from the addon
+		const response = new TriggerUpdateResponse();
+		response.setAccepted(result.success);
+		response.setMessage(result.message || result.error || "");
 		pending.resolve(response);
 	}
 }
