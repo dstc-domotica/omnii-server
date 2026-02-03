@@ -1,6 +1,7 @@
 import {
 	bigint,
 	doublePrecision,
+	index,
 	integer,
 	pgTable,
 	text,
@@ -34,37 +35,45 @@ export const enrollmentCodes = pgTable("enrollment_codes", {
 	deactivatedAt: bigint("deactivated_at", { mode: "number" }),
 });
 
-export const heartbeats = pgTable("heartbeats", {
-	id: text("id").primaryKey(),
-	instanceId: text("instance_id")
-		.notNull()
-		.references(() => instances.id),
-	timestamp: bigint("timestamp", { mode: "number" })
-		.notNull()
-		.$defaultFn(() => Date.now()),
-	status: text("status").notNull(), // online, offline, error
-	latencyMs: integer("latency_ms"), // gRPC round-trip time in milliseconds
-});
+export const heartbeats = pgTable(
+	"heartbeats",
+	{
+		id: text("id").primaryKey(),
+		instanceId: text("instance_id")
+			.notNull()
+			.references(() => instances.id),
+		timestamp: bigint("timestamp", { mode: "number" })
+			.notNull()
+			.$defaultFn(() => Date.now()),
+		status: text("status").notNull(), // online, offline, error
+		latencyMs: integer("latency_ms"), // gRPC round-trip time in milliseconds
+	},
+	(table) => [index("idx_heartbeats_instance_time").on(table.instanceId, table.timestamp)],
+);
 
-export const connectivityChecks = pgTable("connectivity_checks", {
-	id: text("id").primaryKey(),
-	instanceId: text("instance_id")
-		.notNull()
-		.references(() => instances.id),
-	timestamp: bigint("timestamp", { mode: "number" })
-		.notNull()
-		.$defaultFn(() => Date.now()),
-	target: text("target").notNull(), // 8.8.8.8, 1.1.1.1
-	status: text("status").notNull(), // reachable, unreachable, timeout
-	latencyMs: integer("latency_ms"),
-	error: text("error"),
-	publicIp: text("public_ip"),
-	ipCountry: text("ip_country"),
-	ipRegion: text("ip_region"),
-	ipCity: text("ip_city"),
-	ipIsp: text("ip_isp"),
-	ipAsn: text("ip_asn"),
-});
+export const connectivityChecks = pgTable(
+	"connectivity_checks",
+	{
+		id: text("id").primaryKey(),
+		instanceId: text("instance_id")
+			.notNull()
+			.references(() => instances.id),
+		timestamp: bigint("timestamp", { mode: "number" })
+			.notNull()
+			.$defaultFn(() => Date.now()),
+		target: text("target").notNull(), // 8.8.8.8, 1.1.1.1
+		status: text("status").notNull(), // reachable, unreachable, timeout
+		latencyMs: integer("latency_ms"),
+		error: text("error"),
+		publicIp: text("public_ip"),
+		ipCountry: text("ip_country"),
+		ipRegion: text("ip_region"),
+		ipCity: text("ip_city"),
+		ipIsp: text("ip_isp"),
+		ipAsn: text("ip_asn"),
+	},
+	(table) => [index("idx_connectivity_instance_time").on(table.instanceId, table.timestamp)],
+);
 
 // System information from Supervisor /info API
 export const instanceSystemInfo = pgTable("instance_system_info", {
@@ -109,24 +118,28 @@ export const instanceUpdates = pgTable("instance_updates", {
 });
 
 // Instance core stats reports (time series)
-export const instanceStats = pgTable("instance_stats", {
-	id: text("id").primaryKey(),
-	instanceId: text("instance_id")
-		.notNull()
-		.references(() => instances.id),
-	generatedAt: bigint("generated_at", { mode: "number" }),
-	cpuPercent: doublePrecision("cpu_percent"),
-	memoryUsage: bigint("memory_usage", { mode: "number" }),
-	memoryLimit: bigint("memory_limit", { mode: "number" }),
-	memoryPercent: doublePrecision("memory_percent"),
-	networkTx: bigint("network_tx", { mode: "number" }),
-	networkRx: bigint("network_rx", { mode: "number" }),
-	blkRead: bigint("blk_read", { mode: "number" }),
-	blkWrite: bigint("blk_write", { mode: "number" }),
-	createdAt: bigint("created_at", { mode: "number" })
-		.notNull()
-		.$defaultFn(() => Date.now()),
-});
+export const instanceStats = pgTable(
+	"instance_stats",
+	{
+		id: text("id").primaryKey(),
+		instanceId: text("instance_id")
+			.notNull()
+			.references(() => instances.id),
+		generatedAt: bigint("generated_at", { mode: "number" }),
+		cpuPercent: doublePrecision("cpu_percent"),
+		memoryUsage: bigint("memory_usage", { mode: "number" }),
+		memoryLimit: bigint("memory_limit", { mode: "number" }),
+		memoryPercent: doublePrecision("memory_percent"),
+		networkTx: bigint("network_tx", { mode: "number" }),
+		networkRx: bigint("network_rx", { mode: "number" }),
+		blkRead: bigint("blk_read", { mode: "number" }),
+		blkWrite: bigint("blk_write", { mode: "number" }),
+		createdAt: bigint("created_at", { mode: "number" })
+			.notNull()
+			.$defaultFn(() => Date.now()),
+	},
+	(table) => [index("idx_stats_instance_time").on(table.instanceId, table.generatedAt)],
+);
 
 export const instanceRefreshTokens = pgTable("instance_refresh_tokens", {
 	id: text("id").primaryKey(),

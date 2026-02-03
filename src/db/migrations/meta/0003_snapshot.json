@@ -1,6 +1,6 @@
 {
-  "id": "d24ae37c-8e07-4a56-8dd5-25feca7f6791",
-  "prevId": "ed261780-7666-4eb8-8dab-e5aa9a4487ac",
+  "id": "8b017f19-cea4-40e9-afe8-d44c0db49f84",
+  "prevId": "d24ae37c-8e07-4a56-8dd5-25feca7f6791",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -87,7 +87,29 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_connectivity_instance_time": {
+          "name": "idx_connectivity_instance_time",
+          "columns": [
+            {
+              "expression": "instance_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "timestamp",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "connectivity_checks_instance_id_instances_id_fk": {
           "name": "connectivity_checks_instance_id_instances_id_fk",
@@ -207,7 +229,29 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_heartbeats_instance_time": {
+          "name": "idx_heartbeats_instance_time",
+          "columns": [
+            {
+              "expression": "instance_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "timestamp",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "heartbeats_instance_id_instances_id_fk": {
           "name": "heartbeats_instance_id_instances_id_fk",
@@ -383,7 +427,29 @@
           "notNull": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_stats_instance_time": {
+          "name": "idx_stats_instance_time",
+          "columns": [
+            {
+              "expression": "instance_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "generated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "instance_stats_instance_id_instances_id_fk": {
           "name": "instance_stats_instance_id_instances_id_fk",

@@ -120,6 +120,21 @@ export const ConnectivityRecord = z.object({
 	ipAsn: z.string().nullable(),
 });
 
+export const InstanceStatsRecord = z.object({
+	id: z.string(),
+	instanceId: z.string(),
+	generatedAt: z.number().nullable(),
+	cpuPercent: z.number().nullable(),
+	memoryUsage: z.number().nullable(),
+	memoryLimit: z.number().nullable(),
+	memoryPercent: z.number().nullable(),
+	networkTx: z.number().nullable(),
+	networkRx: z.number().nullable(),
+	blkRead: z.number().nullable(),
+	blkWrite: z.number().nullable(),
+	createdAt: z.number(),
+});
+
 export const TriggerUpdateBody = z
 	.object({
 		updateType: z.enum(["core", "os", "supervisor", "addon"]),

@@ -12,11 +12,17 @@ import {
 } from "../db";
 import { isAddonConnected, requestUpdateFromAddon } from "../grpc/server";
 import { ApiError } from "../http/errors";
+import {
+	emitInstanceHeartbeat,
+	emitInstanceStatusChange,
+	emitUpdateAvailable,
+} from "../lib/event-bus";
 import { logError } from "../lib/logger";
 import type {
 	HeartbeatModel,
 	ConnectivityCheckModel,
 	InstanceModel,
+	InstanceStatsModel,
 	InstanceSystemInfoModel,
 	InstanceUpdateModel,
 } from "../types/models";
@@ -243,6 +249,24 @@ export async function getInstanceConnectivityChecks(
 		.orderBy(desc(connectivityChecks.timestamp));
 }
 
+export async function getInstanceStats(
+	instanceId: string,
+	minutes: number,
+): Promise<InstanceStatsModel[]> {
+	await requireInstance(instanceId);
+	const cutoffTime = Date.now() - minutes * 60 * 1000;
+	return db
+		.select()
+		.from(instanceStats)
+		.where(
+			and(
+				eq(instanceStats.instanceId, instanceId),
+				gte(instanceStats.createdAt, cutoffTime),
+			),
+		)
+		.orderBy(desc(instanceStats.createdAt));
+}
+
 export async function triggerInstanceUpdate(
 	instanceId: string,
 	updateType: string,
@@ -297,6 +321,15 @@ export async function updateInstanceStatus(
 	status: "online" | "offline" | "error",
 ): Promise<void> {
 	try {
+		// Get current status before update
+		const current = await db
+			.select({ status: instances.status })
+			.from(instances)
+			.where(eq(instances.id, instanceId))
+			.limit(1);
+
+		const previousStatus = current[0]?.status;
+
 		await db
 			.update(instances)
 			.set({
@@ -305,6 +338,11 @@ export async function updateInstanceStatus(
 				updatedAt: Date.now(),
 			})
 			.where(eq(instances.id, instanceId));
+
+		// Emit status change event if status actually changed
+		if (previousStatus !== status) {
+			emitInstanceStatusChange(instanceId, status, previousStatus);
+		}
 	} catch (error) {
 		logError("gRPC failed to update instance status", { error, instanceId });
 	}
@@ -330,6 +368,9 @@ export async function recordHeartbeat(
 				updatedAt: Date.now(),
 			})
 			.where(eq(instances.id, instanceId));
+
+		// Emit heartbeat event for real-time updates
+		emitInstanceHeartbeat(instanceId, latencyMs);
 	} catch (error) {
 		logError("gRPC failed to record heartbeat", { error, instanceId });
 	}
@@ -438,6 +479,16 @@ export async function updateReportedUpdates(
 					createdAt: Date.now(),
 				})),
 			);
+
+			// Emit events for each available update
+			for (const update of availableUpdates) {
+				emitUpdateAvailable(
+					instanceId,
+					update.componentType,
+					update.version,
+					update.versionLatest,
+				);
+			}
 		}
 	} catch (error) {
 		logError("gRPC failed to update reported updates", { error, instanceId });

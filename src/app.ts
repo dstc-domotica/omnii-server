@@ -20,6 +20,7 @@ import {
 	SimpleHealthResponse,
 } from "./openapi/schemas";
 import enrollmentRoutes from "./routes/enrollment";
+import eventsRoutes from "./routes/events";
 import instanceRoutes from "./routes/instances";
 import { sql } from "drizzle-orm";
 
@@ -30,8 +31,6 @@ type AppEnv = {
 };
 
 const app = new OpenAPIHono<AppEnv>();
-const apiVersion = "v1";
-const apiBasePath = `/${apiVersion}`;
 
 app.use("*", logger());
 app.use(
@@ -64,7 +63,7 @@ app.onError((err, c) => {
 	return errorResponse(c, 500, "Internal Server Error");
 });
 
-app.doc(`${apiBasePath}/openapi.json`, {
+app.doc("/openapi.json", {
 	openapi: "3.0.0",
 	info: {
 		title: "Omnii API",
@@ -80,7 +79,7 @@ app.doc(`${apiBasePath}/openapi.json`, {
 app.get(
 	"/docs",
 	Scalar({
-		url: `${apiBasePath}/openapi.json`,
+		url: "/openapi.json",
 	}),
 );
 
@@ -111,7 +110,7 @@ app.openapi(
 // Readiness probe - checks database connectivity
 const readinessRoute = createRoute({
 	method: "get",
-	path: `${apiBasePath}/health`,
+	path: "/ready",
 	tags: ["Health"],
 	responses: {
 		200: {
@@ -153,7 +152,7 @@ app.openapi(
 
 const configRoute = createRoute({
 	method: "get",
-	path: `${apiBasePath}/config`,
+	path: "/config",
 	tags: ["Config"],
 	responses: {
 		200: {
@@ -175,13 +174,14 @@ app.openapi(
 	configRoute,
 	(c): RouteConfigToTypedResponse<typeof configRoute> => {
 		return successResponse(c, {
-			apiBaseUrl: `${buildApiBaseUrl()}${apiBasePath}`,
+			apiBaseUrl: buildApiBaseUrl(),
 			grpcAddress: `${getHostForGrpc()}:${serverConfig.grpcPort}`,
 		}) as unknown as RouteConfigToTypedResponse<typeof configRoute>;
 	},
 );
 
-app.route(apiBasePath, enrollmentRoutes);
-app.route(apiBasePath, instanceRoutes);
+app.route("/", enrollmentRoutes);
+app.route("/", eventsRoutes);
+app.route("/", instanceRoutes);
 
 export default app;

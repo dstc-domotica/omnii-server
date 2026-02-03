@@ -74,3 +74,18 @@ export interface ConnectivityCheckModel {
 	ipIsp: string | null;
 	ipAsn: string | null;
 }
+
+export interface InstanceStatsModel {
+	id: string;
+	instanceId: string;
+	generatedAt: number | null;
+	cpuPercent: number | null;
+	memoryUsage: number | null;
+	memoryLimit: number | null;
+	memoryPercent: number | null;
+	networkTx: number | null;
+	networkRx: number | null;
+	blkRead: number | null;
+	blkWrite: number | null;
+	createdAt: number;
+}
